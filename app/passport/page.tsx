@@ -14,23 +14,51 @@ const BG3 = '#0a1628'
 const GR = '#51cf66'
 const PURPLE = '#a855f7'
 
+const countryCoordinates: Record<string, [number, number]> = {
+  IN: [20.5937, 78.9629], US: [37.0902, -95.7129], GB: [55.3781, -3.4360], FR: [46.2276, 2.2137], DE: [51.1657, 10.4515], IT: [41.8719, 12.5674], ES: [40.4637, -3.7492], JP: [36.2048, 138.2529], CN: [35.8617, 104.1954], AU: [-25.2744, 133.7751], CA: [56.1304, -106.3468], BR: [-14.2350, -51.9253], MX: [23.6345, -102.5528], AE: [23.4241, 53.8478], TH: [15.8700, 100.9925], SG: [1.3521, 103.8198], MY: [4.2105, 101.9758], ID: [-0.7893, 113.9213], VN: [14.0583, 108.2772], KR: [35.9078, 127.7669], NL: [52.1326, 5.2913], CH: [46.8182, 8.2275], AT: [47.5162, 14.5501], PT: [39.3999, -8.2245], GR: [39.0742, 21.8243], SE: [60.1282, 18.6435], NO: [60.4720, 8.4689], DK: [56.2639, 9.5018], FI: [61.9241, 25.7482], IE: [53.1424, -7.6921], PL: [51.9194, 19.1451], CZ: [49.8175, 15.4730], HU: [47.1625, 19.5033], HR: [45.1000, 15.2000], TR: [38.9637, 35.2433], EG: [26.8206, 30.8025], ZA: [-30.5595, 22.9375], MA: [31.7917, -7.0926], KE: [-0.0236, 37.9062], NZ: [-40.9006, 174.8860], AR: [-38.4161, -63.6167], CL: [-35.6751, -71.5430], CO: [4.5709, -74.2973], PE: [-9.1900, -75.0152], RU: [61.5240, 105.3188], IL: [31.0461, 34.8516], SA: [23.8859, 45.0792], PH: [12.8797, 121.7740], TW: [23.6978, 120.9605], HK: [22.3193, 114.1694], NP: [28.3949, 84.1240], FJ: [-17.7134, 178.0650],
+}
+
+function calculateDistance(coord1: [number, number], coord2: [number, number]): number {
+  const R = 6371
+  const dLat = (coord2[0] - coord1[0]) * Math.PI / 180
+  const dLon = (coord2[1] - coord1[1]) * Math.PI / 180
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(coord1[0] * Math.PI / 180) * Math.cos(coord2[0] * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
+}
+
+function calculateTotalDistance(visited: string[]): number {
+  let total = 0
+  for (let i = 0; i < visited.length - 1; i++) {
+    const c1 = countryCoordinates[visited[i]]
+    const c2 = countryCoordinates[visited[i + 1]]
+    if (c1 && c2) total += calculateDistance(c1, c2)
+  }
+  return total
+}
+
 const navSections = [
   { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
   { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
   { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
   { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💰', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
+  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
 ]
 
 interface Visit {
   date: string
   duration: number
-  purpose: 'tourism' | 'work' | 'transit'
+  purpose: 'tourism' | 'work' | 'transit' | 'family' | 'business'
   photos: string[]
   rating: number
   spots: string[]
   tips: string
   mood: 'loved' | 'liked' | 'ok' | 'disliked'
+  flightNumber?: string
+  airline?: string
+  companion?: string
+  spending?: number
+  currency?: string
 }
 
 interface CountryVisit {
@@ -42,6 +70,8 @@ interface CountryVisit {
   notes: string
   badges: string[]
   moments: string[]
+  visitedDate?: string
+  spendings?: { amount: number; category: string; date: string }[]
 }
 
 interface PassportSettings {
@@ -50,6 +80,7 @@ interface PassportSettings {
   displayName: string
   homeCountry: string
   style: 'classic' | 'modern' | 'minimal' | 'vintage'
+  wishlist: string[]
 }
 
 const allCountries = [
@@ -156,6 +187,138 @@ function generatePassportNumber(): string {
   return result
 }
 
+function RealMap({ visited, wishlist, onCountryClick }: { visited: string[], wishlist: string[], onCountryClick: (code: string) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [mapKey, setMapKey] = useState(0)
+
+  useEffect(() => {
+    import('leaflet').then(() => {
+      setLoaded(true)
+    })
+  }, [])
+
+  useEffect(() => {
+    setMapKey(k => k + 1)
+  }, [visited.length, wishlist.length])
+
+  useEffect(() => {
+    if (!loaded || !containerRef.current) return
+    
+    let mapInstance: any = null
+    let mounted = true
+
+    import('leaflet').then((L: any) => {
+      if (!mounted || !containerRef.current) return
+      
+      const existingContainer = containerRef.current.querySelector('.leaflet-container')
+      if (existingContainer) {
+        existingContainer.remove()
+      }
+
+      const mapDiv = document.createElement('div')
+      mapDiv.className = 'leaflet-container'
+      mapDiv.style.height = '100%'
+      mapDiv.style.width = '100%'
+      containerRef.current.appendChild(mapDiv)
+
+      mapInstance = L.map(mapDiv, {
+        center: [20, 0],
+        zoom: 2,
+        zoomControl: true,
+        scrollWheelZoom: true,
+        worldCopyJump: true
+      })
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap & CARTO'
+      }).addTo(mapInstance)
+
+      const createIcon = (color: string) => {
+        return L.divIcon({
+          className: 'custom-marker',
+          html: `<div style="
+            width: 20px; 
+            height: 20px; 
+            background: ${color}; 
+            border-radius: 50%; 
+            border: 3px solid #fff; 
+            box-shadow: 0 0 12px ${color};
+          "></div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }
+
+      visited.forEach(code => {
+        const coord = countryCoordinates[code]
+        const country = allCountries.find(c => c.code === code)
+        if (coord && country) {
+          const marker = L.marker(coord, { icon: createIcon('#63d2ff') }).addTo(mapInstance)
+          marker.bindPopup(`
+            <div style="text-align: center; padding: 8px; font-family: system-ui;">
+              <span style="font-size: 28px;">${country.flag}</span>
+              <div style="font-weight: 600; font-size: 14px; margin-top: 4px;">${country.name}</div>
+              <div style="font-size: 11px; color: #666;">Visited ✓</div>
+            </div>
+          `)
+          marker.on('click', () => onCountryClick(code))
+        }
+      })
+
+      wishlist.forEach(code => {
+        const coord = countryCoordinates[code]
+        const country = allCountries.find(c => c.code === code)
+        if (coord && country) {
+          const marker = L.marker(coord, { icon: createIcon('#ffb74d') }).addTo(mapInstance)
+          marker.bindPopup(`
+            <div style="text-align: center; padding: 8px; font-family: system-ui;">
+              <span style="font-size: 28px;">${country.flag}</span>
+              <div style="font-weight: 600; font-size: 14px; margin-top: 4px;">${country.name}</div>
+              <div style="font-size: 11px; color: #f59e0b;">On Wishlist ⭐</div>
+            </div>
+          `)
+          marker.on('click', () => onCountryClick(code))
+        }
+      })
+
+      if (visited.length > 1) {
+        const latLngs = visited.map(code => countryCoordinates[code]).filter(Boolean)
+        if (latLngs.length > 1) {
+          L.polyline(latLngs, {
+            color: '#63d2ff',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '8, 12'
+          }).addTo(mapInstance)
+        }
+      }
+    })
+
+    return () => {
+      mounted = false
+      if (mapInstance) {
+        mapInstance.remove()
+      }
+    }
+  }, [loaded, mapKey, visited, wishlist])
+
+  if (!loaded) {
+    return (
+      <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: BG2, borderRadius: 16, position: 'relative' }}>
+        <svg style={{ width: 60, height: 60, animation: 'spin 2s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="#63d2ff" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" strokeOpacity="0.2"/>
+          <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/>
+        </svg>
+      </div>
+    )
+  }
+
+  return (
+    <div ref={containerRef} style={{ height: 500, borderRadius: 16, overflow: 'hidden', position: 'relative' }} />
+  )
+}
+
 function WorldMapSVG({ visited, onCountryClick }: { visited: string[], onCountryClick: (code: string) => void }) {
   const countries: Record<string, string> = {
     'IN': 'M350,380 L360,370 L370,375 L365,390 L340,395 L330,385 Z',
@@ -254,8 +417,9 @@ export default function TravelPassport() {
     displayName: 'Traveler',
     homeCountry: 'IN',
     style: 'modern',
+    wishlist: [],
   })
-  const [viewMode, setViewMode] = useState<'cover' | 'map' | 'stamps' | 'photos' | 'leaderboard'>('cover')
+  const [viewMode, setViewMode] = useState<'cover' | 'map' | 'stamps' | 'photos' | 'leaderboard' | 'timeline' | 'stats'>('cover')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState<string | null>(null)
   const [selectedCountry, setSelectedCountry] = useState<typeof allCountries[0] | null>(null)
@@ -279,7 +443,7 @@ export default function TravelPassport() {
       if (saved) {
         const data = JSON.parse(saved)
         setCountries(data.countries || {})
-        setSettings(data.settings || settings)
+        setSettings({ ...settings, ...data.settings })
         if (data.lastSaved) setLastSaved(data.lastSaved)
         if (data.passportNumber) setPassportNumber(data.passportNumber)
         else setPassportNumber(generatePassportNumber())
@@ -489,87 +653,111 @@ export default function TravelPassport() {
   const favoriteContinent = Object.entries(continentCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None'
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: BG, color: '#fff' }}>
-      {sidebarOpen && (
-        <div style={{ width: 256, minWidth: 256, background: BG2, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', position: 'fixed', left: 0, top: 0, bottom: 0, overflow: 'auto', zIndex: 100 }}>
-          <div style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(99,210,255,0.07)' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,rgba(99,210,255,0.2),rgba(255,183,77,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🌍</div>
-            <span style={{ fontSize: 18, fontWeight: 700 }}>Roamind</span>
-            {lastSaved && <span style={{ fontSize: 10, color: GR, marginLeft: 'auto' }}>✓ Saved</span>}
-          </div>
-          <div style={{ flex: 1, padding: 12 }}>
-            {navSections.map((section, si) => (
-              <div key={si} style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 9.5, letterSpacing: 2.5, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', padding: '8px 0' }}>{section.title}</div>
-                {section.items.map(item => (
-                  <button key={item.path} onClick={() => nav(item.path)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', background: activePath === item.path ? 'rgba(99,210,255,0.1)' : 'transparent', border: 'none', borderRadius: 9, cursor: 'pointer', color: '#fff' }}>
-                    <span>{item.icon}</span>
-                    <span style={{ fontSize: 12.5, color: activePath === item.path ? C : 'rgba(255,255,255,0.7)' }}>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div style={{ padding: 10, borderTop: '1px solid rgba(99,210,255,0.07)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px', marginBottom: 8 }}>
-              <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#63d2ff,#ffb74d)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: BG }}>{settings.avatar || avatar}</div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{settings.displayName || firstName}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>{user?.email}</div>
+    <div style={{ display: 'flex', height: '100vh', background: BG, color: '#fff', fontFamily: "'Outfit',sans-serif", overflow: 'hidden' }}>
+      
+      {/* SIDEBAR */}
+      <div style={{ width: sidebarOpen ? 256 : 64, minWidth: sidebarOpen ? 256 : 64, background: '#05090f', borderRight: '1px solid rgba(99,210,255,0.07)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', overflow: 'hidden', flexShrink: 0, zIndex: 50 }}>
+        <div style={{ padding: '20px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(99,210,255,0.07)', flexShrink: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,rgba(99,210,255,0.2),rgba(255,183,77,0.15))', border: '1px solid rgba(99,210,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🌍</div>
+          {sidebarOpen && <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 900, background: 'linear-gradient(130deg,#fff 30%,#63d2ff 70%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', whiteSpace: 'nowrap' }}>Roamind</span>}
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 10px' }}>
+          {navSections.map((section, si) => (
+            <div key={si} style={{ marginBottom: 8 }}>
+              {sidebarOpen && <div style={{ fontSize: 9.5, letterSpacing: 2.5, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', padding: '8px 8px 6px', fontWeight: 600 }}>{section.title}</div>}
+              {section.items.map(item => (
+                <button key={item.path} onClick={() => nav(item.path)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: sidebarOpen ? '9px 10px' : '9px 0', justifyContent: sidebarOpen ? 'flex-start' : 'center', background: activePath === item.path ? 'rgba(99,210,255,0.1)' : 'transparent', border: activePath === item.path ? '1px solid rgba(99,210,255,0.18)' : '1px solid transparent', borderRadius: 9, cursor: 'pointer', marginBottom: 2, transition: 'all 0.18s' }}
+                  onMouseEnter={e => { if (activePath !== item.path) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.border = '1px solid rgba(255,255,255,0.06)' } }}
+                  onMouseLeave={e => { if (activePath !== item.path) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.border = '1px solid transparent' } }}
+                >
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+                  {sidebarOpen && <span style={{ fontSize: 12.5, fontWeight: activePath === item.path ? 600 : 400, color: activePath === item.path ? C : 'rgba(255,255,255,0.52)', whiteSpace: 'nowrap' }}>{item.label}</span>}
+                  {sidebarOpen && activePath === item.path && <div style={{ marginLeft: 'auto', width: 5, height: 5, borderRadius: '50%', background: C }} />}
+                </button>
+              ))}
+              {si < navSections.length - 1 && <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '8px 0' }} />}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ padding: '10px', borderTop: '1px solid rgba(99,210,255,0.07)', flexShrink: 0 }}>
+          {sidebarOpen && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#63d2ff,#ffb74d)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#000814', flexShrink: 0 }}>{settings.avatar || avatar}</div>
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{settings.displayName || firstName}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</div>
               </div>
             </div>
-            <button onClick={handleLogout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', background: 'rgba(255,60,60,0.06)', border: 'none', borderRadius: 9, cursor: 'pointer', color: 'rgba(255,100,100,0.75)', fontSize: 12 }}>
-              <span>🚪</span><span>Logout</span>
+          )}
+          <button onClick={handleLogout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, justifyContent: sidebarOpen ? 'flex-start' : 'center', padding: sidebarOpen ? '8px 10px' : '8px 0', background: 'rgba(255,60,60,0.06)', border: '1px solid rgba(255,60,60,0.12)', borderRadius: 9, cursor: 'pointer', color: 'rgba(255,100,100,0.75)', fontSize: 12, transition: 'all 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,60,60,0.12)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,60,60,0.06)'}
+          ><span style={{ fontSize: 14 }}>🚪</span>{sidebarOpen && <span>Logout</span>}</button>
+        </div>
+      </div>
+
+      {/* MAIN CONTENT */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        
+        {/* TOP BAR */}
+        <div style={{ height: 62, padding: '0 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(99,210,255,0.07)', background: 'rgba(0,5,14,0.9)', backdropFilter: 'blur(20px)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ width: 34, height: 34, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, cursor: 'pointer', fontSize: 15, color: 'rgba(255,255,255,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)' }}
+            >☰</button>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>🏅 Travel Passport</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>Your journey, one stamp at a time!</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {lastSaved && <span style={{ fontSize: 11, color: GR }}>✓ Saved {lastSaved}</span>}
+            <button onClick={generateShareCard} style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: G, fontSize: 13 }}>📤 Share</span>
             </button>
           </div>
         </div>
-      )}
 
-      <div style={{ flex: 1, marginLeft: sidebarOpen ? 256 : 0, transition: 'margin-left 0.3s' }}>
-        <div style={{ background: `linear-gradient(135deg, ${BG2} 0%, ${BG} 100%)`, padding: '40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: 10, borderRadius: 10, cursor: 'pointer' }}>☰</button>
-            <div>
-              <h1 style={{ fontSize: 28, fontWeight: 800 }}>🏅 Travel Passport</h1>
-              <p style={{ color: 'rgba(255,255,255,0.5)' }}>Your journey, one stamp at a time!</p>
-            </div>
-          </div>
-
+        {/* SCROLLABLE CONTENT */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '20px 22px' }}>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            {(['cover', 'map', 'stamps', 'photos', 'leaderboard'] as const).map(mode => (
-              <button key={mode} onClick={() => setViewMode(mode)} style={{ padding: '12px 20px', background: viewMode === mode ? C : 'rgba(255,255,255,0.05)', borderRadius: 30, cursor: 'pointer', border: `1px solid ${viewMode === mode ? C : 'rgba(255,255,255,0.1)'}`, transition: 'all 0.3s' }}>
-                <span style={{ color: viewMode === mode ? BG : '#fff' }}>
-                  {mode === 'cover' && '📔'} {mode === 'map' && '🗺️'} {mode === 'stamps' && '📮'} {mode === 'photos' && '📸'} {mode === 'leaderboard' && '🏆'} {' '}
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            {(['cover', 'map', 'stamps', 'photos', 'timeline', 'stats', 'leaderboard'] as const).map(mode => (
+              <button key={mode} onClick={() => setViewMode(mode)} style={{ padding: '10px 18px', background: viewMode === mode ? C : 'rgba(255,255,255,0.05)', borderRadius: 25, cursor: 'pointer', border: `1px solid ${viewMode === mode ? C : 'rgba(255,255,255,0.08)'}`, transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: 6 }}
+                onMouseEnter={e => { if (viewMode !== mode) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' } }}
+                onMouseLeave={e => { if (viewMode !== mode) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' } }}
+              >
+                <span style={{ color: viewMode === mode ? BG : '#fff', fontSize: 13, fontWeight: 500 }}>
+                  {mode === 'cover' && '📔'} {mode === 'map' && '🗺️'} {mode === 'stamps' && '📮'} {mode === 'photos' && '📸'} {mode === 'timeline' && '📅'} {mode === 'stats' && '📊'} {mode === 'leaderboard' && '🏆'}
                 </span>
               </button>
             ))}
-            <button onClick={generateShareCard} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.05)', borderRadius: 30, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', marginLeft: 'auto' }}>
-              <span style={{ color: G }}>📤 Share</span>
-            </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-            <div style={{ background: BG3, padding: 20, borderRadius: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: C }}>{animatedStats.countries}</div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Countries</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
+            <div style={{ background: BG3, padding: 16, borderRadius: 14, textAlign: 'center', border: '1px solid rgba(99,210,255,0.1)' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: C }}>{animatedStats.countries}</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Countries</div>
             </div>
-            <div style={{ background: BG3, padding: 20, borderRadius: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: G }}>{animatedStats.badges}</div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Badges</div>
+            <div style={{ background: BG3, padding: 16, borderRadius: 14, textAlign: 'center', border: '1px solid rgba(255,183,77,0.1)' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: G }}>{animatedStats.badges}</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Badges</div>
             </div>
-            <div style={{ background: BG3, padding: 20, borderRadius: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: PURPLE }}>{animatedStats.photos}</div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Photos</div>
+            <div style={{ background: BG3, padding: 16, borderRadius: 14, textAlign: 'center', border: '1px solid rgba(168,85,247,0.1)' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: PURPLE }}>{animatedStats.photos}</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Photos</div>
             </div>
-            <div style={{ background: BG3, padding: 20, borderRadius: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: GR }}>{animatedStats.visits}</div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Trips</div>
+            <div style={{ background: BG3, padding: 16, borderRadius: 14, textAlign: 'center', border: '1px solid rgba(81,207,102,0.1)' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: GR }}>{animatedStats.visits}</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Trips</div>
+            </div>
+            <div style={{ background: BG3, padding: 16, borderRadius: 14, textAlign: 'center', border: '1px solid rgba(255,107,107,0.1)' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: R }}>{calculateTotalDistance(visitedCodes).toLocaleString()}</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>KM</div>
             </div>
           </div>
-        </div>
-
-        <div style={{ padding: '24px 32px' }}>
           {viewMode === 'cover' && (
             <div style={{ display: 'flex', justifyContent: 'center', perspective: '1000px' }}>
               <div style={{ 
@@ -607,20 +795,36 @@ export default function TravelPassport() {
           {viewMode === 'map' && (
             <div style={{ background: BG2, borderRadius: 20, padding: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>🗺️ World Map</h2>
-                <div style={{ color: 'rgba(255,255,255,0.5)' }}>Visited {totalCountries} of 195 countries</div>
+                <div>
+                  <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>🗺️ Interactive Map</h2>
+                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Total Distance: {calculateTotalDistance(visitedCodes).toLocaleString()} km</div>
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: BG3, borderRadius: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: C }} />
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Visited ({totalCountries})</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: BG3, borderRadius: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: G }} />
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Wishlist ({settings.wishlist.length})</span>
+                  </div>
+                </div>
               </div>
-              <WorldMapSVG visited={visitedCodes} onCountryClick={(code) => {
-                const country = allCountries.find(c => c.code === code)
-                if (country) {
-                  setSelectedCountry(country)
-                  if (visitedCodes.includes(code)) {
-                    setShowDetailModal(code)
-                  } else {
-                    setShowAddModal(true)
+              <RealMap 
+                visited={visitedCodes} 
+                wishlist={settings.wishlist}
+                onCountryClick={(code) => {
+                  const country = allCountries.find(c => c.code === code)
+                  if (country) {
+                    setSelectedCountry(country)
+                    if (visitedCodes.includes(code)) {
+                      setShowDetailModal(code)
+                    } else {
+                      setShowAddModal(true)
+                    }
                   }
-                }
-              }} />
+                }} 
+              />
               <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
                 {Object.entries(CONTINENT_COLORS).map(([cont, color]) => (
                   <div key={cont} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: BG3, borderRadius: 8 }}>
@@ -721,6 +925,104 @@ export default function TravelPassport() {
             </div>
           )}
 
+          {viewMode === 'timeline' && (
+            <div>
+              <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 24 }}>📅 Travel Timeline</h2>
+              {totalVisits === 0 ? (
+                <div style={{ textAlign: 'center', padding: 60, background: BG2, borderRadius: 20 }}>
+                  <div style={{ fontSize: 64, marginBottom: 16 }}>📅</div>
+                  <div style={{ fontSize: 20, fontWeight: 600, color: '#fff', marginBottom: 8 }}>No trips yet!</div>
+                  <p style={{ color: 'rgba(255,255,255,0.5)' }}>Your travel timeline will appear here.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {Object.values(countries)
+                    .flatMap(c => c.visits.map(v => ({ ...v, country: c })))
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .slice(0, 20)
+                    .map((visit, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 20, background: BG2, borderRadius: 16, padding: 20, alignItems: 'center' }}>
+                        <div style={{ width: 60, height: 60, borderRadius: 12, background: `${CONTINENT_COLORS[visit.country.continent]}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
+                          {visit.country.flag}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>{visit.country.name}</div>
+                          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                            {new Date(visit.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} • {visit.duration} days • {visit.purpose}
+                          </div>
+                          {visit.companion && <div style={{ fontSize: 12, color: G, marginTop: 4 }}>👥 {visit.companion}</div>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {visit.mood === 'loved' && '❤️'}
+                          {visit.mood === 'liked' && '😊'}
+                          {visit.mood === 'ok' && '😐'}
+                          {visit.mood === 'disliked' && '😕'}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {viewMode === 'stats' && (
+            <div>
+              <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 24 }}>📊 Travel Statistics</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
+                <div style={{ background: BG2, borderRadius: 20, padding: 24 }}>
+                  <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 16 }}>🌍 Continents Visited</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {Object.entries(continentCounts).sort((a, b) => b[1] - a[1]).map(([cont, count]) => (
+                      <div key={cont} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: CONTINENT_COLORS[cont] }} />
+                        <div style={{ flex: 1, height: 8, background: BG3, borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ width: `${(count / totalCountries) * 100}%`, height: '100%', background: CONTINENT_COLORS[cont], borderRadius: 4 }} />
+                        </div>
+                        <span style={{ fontSize: 14, color: '#fff', width: 30 }}>{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ background: BG2, borderRadius: 20, padding: 24 }}>
+                  <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 16 }}>📅 Trips by Year</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {Object.entries(
+                      Object.values(countries).flatMap(c => c.visits).reduce((acc, v) => {
+                        const year = new Date(v.date).getFullYear()
+                        acc[year] = (acc[year] || 0) + 1
+                        return acc
+                      }, {} as Record<string, number>)
+                    ).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 5).map(([year, count]) => (
+                      <div key={year} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 8, background: BG3, borderRadius: 8 }}>
+                        <span style={{ color: '#fff' }}>{year}</span>
+                        <span style={{ color: C, fontWeight: 600 }}>{count} trips</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ background: BG2, borderRadius: 20, padding: 24 }}>
+                  <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 16 }}>✈️ Total Distance</h3>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 36, fontWeight: 800, color: C }}>{calculateTotalDistance(visitedCodes).toLocaleString()}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>kilometers traveled</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: G, marginTop: 8 }}>{(calculateTotalDistance(visitedCodes) / 6371).toFixed(1)}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>times around Earth</div>
+                  </div>
+                </div>
+                <div style={{ background: BG2, borderRadius: 20, padding: 24 }}>
+                  <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 16 }}>⭐ Average Rating</h3>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 36, fontWeight: 800, color: G }}>
+                      {(Object.values(countries).flatMap(c => c.visits).reduce((a, v) => a + v.rating, 0) / totalVisits || 0).toFixed(1)}
+                    </div>
+                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>out of 5</div>
+                    <div style={{ marginTop: 8 }}>⭐⭐⭐⭐⭐</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {viewMode === 'leaderboard' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 24 }}>🏆 Top Travelers</h2>
@@ -786,13 +1088,29 @@ export default function TravelPassport() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setShowAddModal(false)}>
           <div style={{ background: BG2, borderRadius: 24, padding: 32, maxWidth: 600, width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <h2 style={{ color: '#fff', fontSize: 24, fontWeight: 700 }}>➕ Add Country</h2>
+              <h2 style={{ color: '#fff', fontSize: 24, fontWeight: 700 }}>➕ Add to Passport</h2>
               <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer' }}>×</button>
             </div>
+            
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+              <button 
+                onClick={() => setViewMode(viewMode)} 
+                style={{ flex: 1, padding: 12, background: `${C}20`, border: `1px solid ${C}`, borderRadius: 10, color: '#fff', cursor: 'pointer', fontWeight: 600 }}
+              >
+                ✓ Visited
+              </button>
+              <button 
+                onClick={() => {}}
+                style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}
+              >
+                ⭐ Wishlist
+              </button>
+            </div>
+            
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Select Country</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, maxHeight: 200, overflow: 'auto', padding: 12, background: BG3, borderRadius: 12 }}>
-                {unvisitedCountries.map(country => (
+                {unvisitedCountries.filter(c => !settings.wishlist.includes(c.code)).map(country => (
                   <div key={country.code} onClick={() => setSelectedCountry(country)} style={{ padding: 8, borderRadius: 8, cursor: 'pointer', textAlign: 'center', background: selectedCountry?.code === country.code ? `${C}30` : 'transparent', border: `1px solid ${selectedCountry?.code === country.code ? C : 'transparent'}` }}>
                     <div style={{ fontSize: 24 }}>{country.flag}</div>
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>{country.name}</div>
@@ -800,6 +1118,21 @@ export default function TravelPassport() {
                 ))}
               </div>
             </div>
+            
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Or add to wishlist</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, maxHeight: 120, overflow: 'auto', padding: 12, background: BG3, borderRadius: 12 }}>
+                {unvisitedCountries.filter(c => !visitedCodes.includes(c.code)).map(country => (
+                  <div key={`wl-${country.code}`} onClick={() => {
+                    setSettings(s => ({ ...s, wishlist: [...s.wishlist, country.code] }))
+                  }} style={{ padding: 8, borderRadius: 8, cursor: 'pointer', textAlign: 'center', background: settings.wishlist.includes(country.code) ? `${G}30` : 'transparent', border: `1px solid ${settings.wishlist.includes(country.code) ? G : 'transparent'}` }}>
+                    <div style={{ fontSize: 24 }}>{country.flag}</div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>⭐</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
             {selectedCountry && (
               <button onClick={addCountry} style={{ width: '100%', background: `linear-gradient(135deg, ${C}, #3b9fd4)`, color: '#000', padding: 16, borderRadius: 12, fontWeight: 700, fontSize: 16, border: 'none', cursor: 'pointer' }}>
                 🏆 Add to Passport
@@ -858,6 +1191,17 @@ export default function TravelPassport() {
         @keyframes stampDrop {
           0% { transform: translateY(-100px) scale(2); opacity: 0; }
           100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .leaflet-container {
+          background: #0a1628;
+          border-radius: 16px;
+        }
+        .leaflet-popup-content-wrapper {
+          background: #fff;
+          border-radius: 12px;
+        }
+        .leaflet-popup-tip {
+          background: #fff;
         }
       `}</style>
     </div>
