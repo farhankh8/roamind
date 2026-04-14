@@ -9,10 +9,17 @@ import {
   signInWithPopup
 } from 'firebase/auth'
 import emailjs from '@emailjs/browser'
+import { z } from 'zod'
 
-const EMAILJS_SERVICE = 'service_ks4ao1o'
-const EMAILJS_TEMPLATE = 'template_ic5ceb9'
-const EMAILJS_PUBLIC = '7BuqXseESSYiJ0N80'
+const EMAILJS_SERVICE = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!
+const EMAILJS_TEMPLATE = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!
+const EMAILJS_PUBLIC = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
+
+const signupSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+})
 
 const slides = [
   { img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80', name: 'Maldives', country: 'Maldives' },
@@ -38,8 +45,10 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false)
   const [successName, setSuccessName] = useState('')
   const [successEmail, setSuccessEmail] = useState('')
+  const [formErrors, setFormErrors] = useState<Record<string,string>>({})
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
     slides.forEach(s => { const img = new Image(); img.src = s.img })
     const interval = setInterval(() => {
@@ -89,8 +98,9 @@ export default function SignupPage() {
       setSuccessEmail(user.email || '')
       setSuccess(true)
       setTimeout(() => router.push('/dashboard'), 2500)
-    } catch (err: any) {
-      setError(err.message || 'Google sign-in failed')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Google sign-in failed'
+      setError(message)
       setLoading(false)
     }
   }
@@ -98,6 +108,16 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    const result = signupSchema.safeParse({ name, email, password })
+    if (!result.success) {
+      const errors: Record<string,string> = {}
+      result.error.issues.forEach(err => {
+        if (err.path[0]) errors[err.path[0] as string] = err.message
+      })
+      setFormErrors(errors)
+      return
+    }
+    setFormErrors({})
     if (!name || !email || !password || !confirm) {
       setError('Please fill in all fields')
       return
@@ -119,12 +139,13 @@ export default function SignupPage() {
       setSuccessEmail(email)
       setSuccess(true)
       setTimeout(() => router.push('/dashboard'), 2500)
-    } catch (err: any) {
-      const msg = err.code === 'auth/email-already-in-use'
+    } catch (err: unknown) {
+      const firebaseError = err as { code?: string; message?: string }
+      const msg = firebaseError.code === 'auth/email-already-in-use'
         ? 'This email is already registered. Please log in.'
-        : err.code === 'auth/invalid-email'
+        : firebaseError.code === 'auth/invalid-email'
         ? 'Please enter a valid email address.'
-        : err.message || 'Signup failed. Please try again.'
+        : firebaseError.message || 'Signup failed. Please try again.'
       setError(msg)
       setLoading(false)
     }
@@ -174,7 +195,7 @@ export default function SignupPage() {
           <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, background: 'linear-gradient(130deg, #fff 30%, #63d2ff 70%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Roamind</span>
         </div>
         <div style={{ position: 'absolute', top: '50%', left: 40, right: 60, transform: 'translateY(-50%)', zIndex: 10 }}>
-          <div style={{ fontSize: 40, color: 'rgba(255,255,255,0.15)', fontFamily: "'Playfair Display', serif", lineHeight: 1, marginBottom: 12 }}>"</div>
+          <div style={{ fontSize: 40, color: 'rgba(255,255,255,0.15)', fontFamily: "'Playfair Display', serif", lineHeight: 1, marginBottom: 12 }}>&ldquo;</div>
           <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, fontStyle: 'italic' }}>The world is a book, and those who do not travel read only one page.</p>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 12, letterSpacing: 1 }}>— Saint Augustine</p>
         </div>
@@ -226,6 +247,9 @@ export default function SignupPage() {
                   onBlur={e => { e.target.style.borderColor = 'rgba(99,210,255,0.18)'; e.target.style.boxShadow = 'none' }}
                 />
               </div>
+              {formErrors.name && (
+                <p style={{ color: 'red', fontSize: '12px', margin: '4px 0 0' }}>{formErrors.name}</p>
+              )}
             </div>
 
             {/* Email */}
@@ -239,6 +263,9 @@ export default function SignupPage() {
                   onBlur={e => { e.target.style.borderColor = 'rgba(99,210,255,0.18)'; e.target.style.boxShadow = 'none' }}
                 />
               </div>
+              {formErrors.email && (
+                <p style={{ color: 'red', fontSize: '12px', margin: '4px 0 0' }}>{formErrors.email}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -253,6 +280,9 @@ export default function SignupPage() {
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, opacity: 0.4 }}>{showPass ? '🙈' : '👁️'}</button>
               </div>
+              {formErrors.password && (
+                <p style={{ color: 'red', fontSize: '12px', margin: '4px 0 0' }}>{formErrors.password}</p>
+              )}
             </div>
 
             {/* Password checks */}

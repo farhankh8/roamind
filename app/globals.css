@@ -1,9 +1,8 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Outfit:wght@300;400;500;600;700&display=swap');
-
 /* ═══════════════════════════════════════
    ROAMIND — GLOBAL DESIGN SYSTEM
+   Note: Google Fonts (Playfair Display, Outfit) are loaded via <link> in layout.tsx
    Colors: #63d2ff (Blue) + #ffb74d (Gold)
 ═══════════════════════════════════════ */
 
@@ -221,4 +220,9 @@ h1, h2, h3, h4 { font-family: var(--font-serif); line-height: 1.1; }
 }
 @media (min-width: 769px) {
   .hide-desktop { display: none !important; }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

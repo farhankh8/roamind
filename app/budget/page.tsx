@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
+import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
 const G = '#ffb74d'
@@ -203,10 +204,6 @@ export default function BudgetTracker() {
     return 'under'
   }
 
-  const dailyRate = currentBudget.totalBudget > 0 && tripDuration > 0 ? (totalSpent / (getDayNumber() || 1)) : 0
-  const projectedTotal = dailyRate * tripDuration
-  const daysUntilBudgetRunsOut = dailyRate > 0 && remaining > 0 ? Math.floor(remaining / dailyRate) : 0
-
   const getDayNumber = () => {
     if (!currentBudget.expenses.length) return 1
     const sorted = [...currentBudget.expenses].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -214,6 +211,10 @@ export default function BudgetTracker() {
     const now = new Date().getTime()
     return Math.max(1, Math.ceil((now - first) / (1000 * 60 * 60 * 24)) + 1)
   }
+
+  const dailyRate = currentBudget.totalBudget > 0 && tripDuration > 0 ? (totalSpent / (getDayNumber() || 1)) : 0
+  const projectedTotal = dailyRate * tripDuration
+  const daysUntilBudgetRunsOut = dailyRate > 0 && remaining > 0 ? Math.floor(remaining / dailyRate) : 0
 
   const getDailySpendData = () => {
     const daily: Record<string, number> = {}
@@ -477,35 +478,7 @@ export default function BudgetTracker() {
         .donut { transform: rotate(-90deg); }
       `}</style>
 
-      {/* SIDEBAR */}
-      <div style={{width: sidebarOpen ? 256 : 64, minWidth: sidebarOpen ? 256 : 64, background:'#05090f',borderRight:'1px solid rgba(99,210,255,0.07)',display:'flex',flexDirection:'column',transition:'all 0.3s ease',overflow:'hidden',flexShrink:0,zIndex:50}}>
-        <div style={{padding:'20px 16px',display:'flex',alignItems:'center',gap:10,borderBottom:'1px solid rgba(99,210,255,0.07)',flexShrink:0}}>
-          <div style={{width:36,height:36,borderRadius:10,background:'linear-gradient(135deg,rgba(99,210,255,0.2),rgba(255,183,77,0.15))',border:'1px solid rgba(99,210,255,0.25)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>💰</div>
-          {sidebarOpen && <span style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,background:'linear-gradient(130deg,#fff 30%,#63d2ff 70%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Roamind</span>}
-        </div>
-        <div style={{flex:1,overflowY:'auto',padding:'12px 10px'}}>
-          {navSections.map((section, si) => (
-            <div key={si} style={{marginBottom:8}}>
-              {sidebarOpen && <div style={{fontSize:9.5,letterSpacing:2.5,color:'rgba(255,255,255,0.2)',textTransform:'uppercase',padding:'8px 8px 6px',fontWeight:600}}>{section.title}</div>}
-              {section.items.map(item => (
-                <button key={item.path} onClick={() => nav(item.path)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:sidebarOpen?'9px 10px':'9px 0',justifyContent:sidebarOpen?'flex-start':'center',background:activePath===item.path?'rgba(99,210,255,0.1)':'transparent',border:activePath===item.path?'1px solid rgba(99,210,255,0.18)':'1px solid transparent',borderRadius:9,cursor:'pointer',marginBottom:2,color:'#fff'}}>
-                  <span style={{fontSize:16}}>{item.icon}</span>
-                  {sidebarOpen && <span style={{fontSize:12.5,fontWeight:activePath===item.path?600:400,color:activePath===item.path?C:'rgba(255,255,255,0.52)'}}>{item.label}</span>}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-        <div style={{padding:'10px',borderTop:'1px solid rgba(99,210,255,0.07)',flexShrink:0}}>
-          {sidebarOpen && (
-            <div style={{display:'flex',alignItems:'center',gap:9,padding:'9px 10px',background:'rgba(255,255,255,0.03)',borderRadius:10,marginBottom:8}}>
-              <div style={{width:30,height:30,borderRadius:'50%',background:'linear-gradient(135deg,#63d2ff,#ffb74d)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#000814'}}>{avatar}</div>
-              <div style={{overflow:'hidden'}}><div style={{fontSize:12,fontWeight:600}}>{firstName}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.28)'}}>{user?.email}</div></div>
-            </div>
-          )}
-          <button onClick={handleLogout} style={{width:'100%',display:'flex',alignItems:'center',gap:9,justifyContent:sidebarOpen?'flex-start':'center',padding:sidebarOpen?'8px 10px':'8px 0',background:'rgba(255,60,60,0.06)',border:'1px solid rgba(255,60,60,0.12)',borderRadius:9,cursor:'pointer',color:'rgba(255,100,100,0.75)',fontSize:12}}>🚪{sidebarOpen && <span>Logout</span>}</button>
-        </div>
-      </div>
+      <Sidebar sidebarOpen={sidebarOpen} activePath={activePath} user={user} onLogout={handleLogout} />
 
       {/* MAIN */}
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>

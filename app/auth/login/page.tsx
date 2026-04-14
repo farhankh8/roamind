@@ -8,6 +8,12 @@ import {
   signInWithPopup,
   sendPasswordResetEmail
 } from 'firebase/auth'
+import { z } from 'zod'
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+})
 
 const slides = [
   { img: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920&q=80', name: 'Paris', country: 'France', flag: '🇫🇷' },
@@ -30,8 +36,10 @@ export default function LoginPage() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [formErrors, setFormErrors] = useState<Record<string,string>>({})
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
     slides.forEach(s => { const img = new Image(); img.src = s.img })
     const interval = setInterval(() => {
@@ -44,6 +52,17 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    const result = loginSchema.safeParse({ email, password })
+    if (!result.success) {
+      const errors: Record<string,string> = {}
+      result.error.issues.forEach(e => {
+        if (e.path[0]) errors[e.path[0] as string] = e.message
+      })
+      setFormErrors(errors)
+      setLoading(false)
+      return
+    }
+    setFormErrors({})
     try {
       await signInWithEmailAndPassword(auth, email, password)
       router.push('/dashboard')
@@ -69,8 +88,9 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
       router.push('/dashboard')
-    } catch (err: any) {
-      setError('Google sign-in failed. Please try again.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Google sign-in failed: ${message}`)
       setLoading(false)
     }
   }
@@ -84,7 +104,7 @@ export default function LoginPage() {
       await sendPasswordResetEmail(auth, email)
       setResetSent(true)
       setError('')
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Failed to send reset email. Please check your email address.')
     }
   }
@@ -114,7 +134,7 @@ export default function LoginPage() {
           <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, background: 'linear-gradient(130deg, #fff 30%, #63d2ff 70%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Roamind</span>
         </div>
         <div style={{ position: 'absolute', top: '50%', left: 40, right: 60, transform: 'translateY(-50%)', zIndex: 10 }}>
-          <div style={{ fontSize: 40, color: 'rgba(255,255,255,0.12)', fontFamily: "'Playfair Display', serif", lineHeight: 1, marginBottom: 12 }}>"</div>
+          <div style={{ fontSize: 40, color: 'rgba(255,255,255,0.12)', fontFamily: "'Playfair Display', serif", lineHeight: 1, marginBottom: 12 }}>&ldquo;</div>
           <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, fontStyle: 'italic' }}>Travel is the only thing you buy that makes you richer.</p>
           <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 10, letterSpacing: 1 }}>— Anonymous</p>
         </div>
@@ -165,6 +185,9 @@ export default function LoginPage() {
                   onBlur={e => { e.target.style.borderColor = 'rgba(99,210,255,0.18)'; e.target.style.boxShadow = 'none' }}
                 />
               </div>
+              {formErrors.email && (
+                <p style={{ color: 'red', fontSize: '12px', margin: '4px 0 0' }}>{formErrors.email}</p>
+              )}
             </div>
 
             <div style={{ marginBottom: 14 }}>
@@ -178,6 +201,9 @@ export default function LoginPage() {
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, opacity: 0.4 }}>{showPass ? '🙈' : '👁️'}</button>
               </div>
+              {formErrors.password && (
+                <p style={{ color: 'red', fontSize: '12px', margin: '4px 0 0' }}>{formErrors.password}</p>
+              )}
             </div>
 
             <div style={{ textAlign: 'right', marginBottom: 24 }}>

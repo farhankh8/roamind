@@ -1,6 +1,11 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import './guides/guides.css'
+import { validateEnv } from '@/lib/env'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { Toaster } from 'react-hot-toast'
+
+validateEnv()
 
 export const metadata: Metadata = {
   title: 'Roamind — AI Travel Brain',
@@ -25,7 +30,8 @@ export default function RootLayout({
         <meta name="theme-color" content="#000814" />
       </head>
       <body suppressHydrationWarning={true}>
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
+        <Toaster position="top-right" />
       </body>
     </html>
   )

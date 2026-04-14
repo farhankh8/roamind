@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const rateLimit = new Map<string, { count: number; resetTime: number }>()
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const limit = rateLimit.get(ip)
+  if (!limit || now > limit.resetTime) {
+    rateLimit.set(ip, { count: 1, resetTime: now + 60000 })
+    return true
+  }
+  if (limit.count >= 10) return false
+  limit.count++
+  return true
+}
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: 'Too many requests. Please wait 1 minute.' }, { status: 429 })
+  }
+
   try {
     const body = await req.json()
 
@@ -85,8 +104,9 @@ Return ONLY a valid JSON array with exactly 55 restaurants. No markdown, no expl
     }
 
     return NextResponse.json({ restaurants: restaurants.slice(0, 55) })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Anthropic API error:', error)
-    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Server error'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

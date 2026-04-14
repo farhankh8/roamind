@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
+import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
 const G = '#ffb74d'
@@ -267,39 +268,7 @@ export default function GuidesPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: BG, color: '#fff' }}>
-      {sidebarOpen && (
-        <div style={{ width: 256, minWidth: 256, background: BG2, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', position: 'fixed', left: 0, top: 0, bottom: 0, overflow: 'auto' }}>
-          <div style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(99,210,255,0.07)' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,rgba(99,210,255,0.2),rgba(255,183,77,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🌍</div>
-            <span style={{ fontSize: 18, fontWeight: 700 }}>Roamind</span>
-          </div>
-          <div style={{ flex: 1, padding: 12 }}>
-            {navSections.map((section, si) => (
-              <div key={si} style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 9.5, letterSpacing: 2.5, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', padding: '8px 0' }}>{section.title}</div>
-                {section.items.map(item => (
-                  <button key={item.path} onClick={() => nav(item.path)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', background: activePath === item.path ? 'rgba(99,210,255,0.1)' : 'transparent', border: 'none', borderRadius: 9, cursor: 'pointer', color: '#fff' }}>
-                    <span>{item.icon}</span>
-                    <span style={{ fontSize: 12.5, color: activePath === item.path ? C : 'rgba(255,255,255,0.7)' }}>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div style={{ padding: 10, borderTop: '1px solid rgba(99,210,255,0.07)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px', marginBottom: 8 }}>
-              <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#63d2ff,#ffb74d)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: BG }}>{avatar}</div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{firstName}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>{user?.email}</div>
-              </div>
-            </div>
-            <button onClick={handleLogout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', background: 'rgba(255,60,60,0.06)', border: 'none', borderRadius: 9, cursor: 'pointer', color: 'rgba(255,100,100,0.75)', fontSize: 12 }}>
-              <span>🚪</span><span>Logout</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {sidebarOpen && <Sidebar sidebarOpen={sidebarOpen} activePath={activePath} user={user} onLogout={handleLogout} />}
 
       <div style={{ flex: 1, marginLeft: sidebarOpen ? 256 : 0, transition: 'margin-left 0.3s' }}>
         <div style={{ background: `linear-gradient(135deg, ${BG2} 0%, ${BG} 100%)`, padding: '40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
