@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#00d4ff'
@@ -10,7 +10,7 @@ const G = '#ffb74d'
 const BG = '#0a0f1e'
 const CARD_BG = '#111827'
 
-const navSections = [
+const _navSections = [
   { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
   { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
   { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
@@ -1580,7 +1580,7 @@ function getScoreColor(score: number): string {
 
 export default function Transport() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/transport')
@@ -1655,7 +1655,7 @@ export default function Transport() {
     return () => clearInterval(interval)
   }, [])
 
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const handleLogout = async () => { const { signOut } = await import('firebase/auth'); await signOut(auth); router.push('/landing') }
 
   const toggleFavorite = (cityName: string) => {

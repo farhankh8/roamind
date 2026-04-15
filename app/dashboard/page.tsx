@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
@@ -10,14 +11,6 @@ const C = '#63d2ff'
 const G = '#ffb74d'
 const GR = '#4cff91'
 const PURPLE = '#a855f7'
-
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
 
 const destinations = [
   { name: 'Bali', country: 'Indonesia', img: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=400&q=80', tag: 'Trending', temp: '28°C', rating: 4.9 },
@@ -174,11 +167,23 @@ export default function Dashboard() {
   const [worldTimes, setWorldTimes] = useState<{ city: string; flag: string; time: string; dayDiff: number; isBusiness: boolean }[]>([])
   const [showWorldClocks, setShowWorldClocks] = useState(true)
   const [budgetData, setBudgetData] = useState<{ total: number; spent: number; transactions: { amount: number; cat: string; note: string; date: string }[] } | null>(null)
+  const [weatherCityTab, setWeatherCityTab] = useState(0)
+
+  interface SavedTrip {
+    id: number
+    destination: string
+    img: string
+    days: number
+    travelers: number
+    totalCost: number
+    flag: string
+    budget: 'low' | 'mid' | 'high'
+  }
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [expenseAmount, setExpenseAmount] = useState('')
   const [expenseCat, setExpenseCat] = useState('Food')
   const [expenseNote, setExpenseNote] = useState('')
-  const [savedTrips, setSavedTrips] = useState<any[]>([])
+  const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([])
   const [storyIdx, setStoryIdx] = useState(0)
   const [packingList, setPackingList] = useState(packingItems)
   const [bucketListState, setBucketListState] = useState(bucketList)
@@ -186,9 +191,6 @@ export default function Dashboard() {
   const [currencyFrom, setCurrencyFrom] = useState('USD')
   const [currencyTo, setCurrencyTo] = useState('INR')
   const [currencyAmount, setCurrencyAmount] = useState('100')
-  const [flightTab, setFlightTab] = useState(0)
-  const [weatherTab, setWeatherTab] = useState(0)
-  const [visaTab, setVisaTab] = useState(0)
   const [botOpen, setBotOpen] = useState(false)
   const [botMessages, setBotMessages] = useState<{ role: 'user' | 'bot', text: string }[]>([
     { role: 'bot', text: "Hi! I'm Roamind AI 🌍 Ask me anything — top places, visa info, best time to visit, local tips, or anything travel related!" }
@@ -344,7 +346,7 @@ export default function Dashboard() {
 
   const deleteSavedTrip = (id: number) => {
     const all = JSON.parse(localStorage.getItem('roamind_saved_trips') || '[]')
-    const updated = all.filter((t: any) => t.id !== id)
+    const updated = all.filter((t: SavedTrip) => t.id !== id)
     localStorage.setItem('roamind_saved_trips', JSON.stringify(updated))
     setSavedTrips(updated.slice(0, 3))
   }
@@ -562,8 +564,8 @@ export default function Dashboard() {
             {/* TRAVEL BRIEF */}
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(99,210,255,0.08)', borderRadius: 16, padding: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>📰 Today's Travel Brief</div>
-                <button onClick={generateBrief} style={{ background: 'transparent', border: 'none', color: C, cursor: 'pointer', fontSize: 11 }}>Refresh ↻</button>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>📰 Today&apos;s Travel Brief</div>
+                <button onClick={generateBrief} style={{ background: 'transparent', border: 'none', color: C, cursor: 'pointer', fontSize: 11 }}>Refresh &#x21bb;</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {travelBrief.map((b, i) => (
@@ -627,7 +629,7 @@ export default function Dashboard() {
                     onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(0,0,0,0.45)' }}
                     onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none' }}
                   >
-                    <img src={d.img} alt={d.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <Image src={d.img} alt={d.name} fill style={{ objectFit: 'cover' }} unoptimized />
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(0,0,0,0.88) 0%,transparent 55%)' }} />
                     <div style={{ position: 'absolute', top: 7, right: 7, padding: '1px 7px', background: 'rgba(99,210,255,0.2)', border: '1px solid rgba(99,210,255,0.35)', borderRadius: 100, fontSize: 8.5, color: '#63d2ff', fontWeight: 600 }}>{d.tag}</div>
                     <div style={{ position: 'absolute', bottom: 7, left: 9 }}>
@@ -650,7 +652,7 @@ export default function Dashboard() {
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,210,255,0.05)'; e.currentTarget.style.border = '1px solid rgba(99,210,255,0.18)' }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; e.currentTarget.style.border = '1px solid rgba(255,255,255,0.05)' }}
                     >
-                      <img src={t.img} alt={t.title} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                      <Image src={t.img} alt={t.title} width={44} height={44} style={{ borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} unoptimized />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                           <span style={{ fontSize: 11, fontWeight: 600 }}>{t.title}</span>
@@ -693,17 +695,21 @@ export default function Dashboard() {
                 <h3 style={{ fontSize: 13, fontWeight: 700 }}>🌤️ Live Weather</h3>
                 <button onClick={() => nav('/weather')} style={{ fontSize: 10, color: GR, background: 'none', border: 'none', cursor: 'pointer' }}>More →</button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {weatherData.slice(0, 4).map((w, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: 'rgba(255,255,255,0.025)', borderRadius: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 16 }}>{w.emoji}</span>
-                      <span style={{ fontSize: 11 }}>{w.dest}</span>
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: w.temp > 30 ? '#ff6b6b' : w.temp < 15 ? '#63d2ff' : GR }}>{w.temp}°C</span>
-                  </div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+                {weatherData.map((w, i) => (
+                  <button key={i} onClick={() => setWeatherCityTab(i)} style={{ padding: '3px 8px', background: weatherCityTab === i ? `${GR}20` : 'rgba(255,255,255,0.04)', border: `1px solid ${weatherCityTab === i ? GR : 'rgba(255,255,255,0.08)'}`, borderRadius: 6, fontSize: 10, color: weatherCityTab === i ? GR : 'rgba(255,255,255,0.5)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    {w.emoji} {w.dest}
+                  </button>
                 ))}
               </div>
+              {weatherData[weatherCityTab] && (
+                <div style={{ padding: '12px', background: 'rgba(255,255,255,0.025)', borderRadius: 10, textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, marginBottom: 6 }}>{weatherData[weatherCityTab].emoji}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>{weatherData[weatherCityTab].dest}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: weatherData[weatherCityTab].temp > 30 ? '#ff6b6b' : weatherData[weatherCityTab].temp < 15 ? C : GR }}>{weatherData[weatherCityTab].temp}°C</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 4, textTransform: 'capitalize' }}>{weatherData[weatherCityTab].cond}</div>
+                </div>
+              )}
             </div>
 
             {/* VISA FREE COUNTRIES */}
@@ -880,7 +886,7 @@ export default function Dashboard() {
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    <img src={g.img} alt={g.name} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(99,210,255,0.2)' }} />
+                    <Image src={g.img} alt={g.name} width={38} height={38} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(99,210,255,0.2)' }} unoptimized />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600 }}>{g.name}</div>
                       <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{g.city} · {g.speciality}</div>
@@ -918,13 +924,13 @@ export default function Dashboard() {
                 <button onClick={() => nav('/saved')} style={{ fontSize: 11, color: '#63d2ff', background: 'rgba(99,210,255,0.08)', border: '1px solid rgba(99,210,255,0.2)', padding: '6px 16px', borderRadius: 100, cursor: 'pointer', fontWeight: 600 }}>View All →</button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
-                {savedTrips.map((trip: any) => (
+                {savedTrips.map((trip: SavedTrip) => (
                   <div key={trip.id} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', transition: 'all 0.25s' }}
                     onMouseEnter={e => { e.currentTarget.style.border = '1px solid rgba(99,210,255,0.3)'; e.currentTarget.style.transform = 'translateY(-3px)' }}
                     onMouseLeave={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.07)'; e.currentTarget.style.transform = 'translateY(0)' }}
                   >
                     <div style={{ position: 'relative', height: 100, overflow: 'hidden' }}>
-                      <img src={trip.img} alt={trip.destination} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <Image src={trip.img} alt={trip.destination} fill style={{ objectFit: 'cover' }} unoptimized />
                       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(2,8,16,0.9) 0%,transparent 50%)' }} />
                       <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 9.5, padding: '2px 8px', background: trip.budget === 'low' ? 'rgba(76,255,145,0.18)' : trip.budget === 'mid' ? 'rgba(99,210,255,0.18)' : 'rgba(255,183,77,0.18)', borderRadius: 100, color: trip.budget === 'low' ? '#4cff91' : trip.budget === 'mid' ? '#63d2ff' : '#ffb74d', fontWeight: 700 }}>
                         {trip.budget === 'low' ? 'Budget' : trip.budget === 'mid' ? 'Comfort' : 'Luxury'}

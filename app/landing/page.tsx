@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 
 const features = [
@@ -213,7 +214,7 @@ export default function LandingPage() {
               onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 24px 60px rgba(0,0,0,0.5)' }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none' }}
             >
-              <img src={d.img} alt={d.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s' }} />
+              <Image src={d.img} alt={d.name} fill style={{ objectFit: 'cover', transition: 'transform 0.4s' }} unoptimized />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)' }} />
               <div style={{ position: 'absolute', top: 14, right: 14, padding: '4px 12px', background: 'rgba(99,210,255,0.18)', border: '1px solid rgba(99,210,255,0.35)', borderRadius: 100, fontSize: 11, color: '#63d2ff', fontWeight: 600, letterSpacing: 1, backdropFilter: 'blur(8px)' }}>{d.tag}</div>
               <div style={{ position: 'absolute', bottom: 18, left: 18 }}>
@@ -246,7 +247,7 @@ export default function LandingPage() {
               onMouseLeave={e => { e.currentTarget.style.border = '1px solid rgba(99,210,255,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
             >
               <div style={{ color: '#ffb74d', fontSize: 15, marginBottom: 16, letterSpacing: 2 }}>{'★'.repeat(r.stars)}</div>
-              <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.65)', lineHeight: 1.75, marginBottom: 24, fontStyle: 'italic' }}>"{r.text}"</p>
+              <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.65)', lineHeight: 1.75, marginBottom: 24, fontStyle: 'italic' }}>&ldquo;{r.text}&rdquo;</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #63d2ff, #ffb74d)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, color: '#000814' }}>{r.avatar}</div>
                 <div>

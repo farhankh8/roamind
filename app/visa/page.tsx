@@ -2,22 +2,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
 const G = '#ffb74d'
-const R = '#ff6b6b'
-const GR = '#51cf66'
 const BG = '#000814'
-
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
+const _R = '#ff6b6b'
+const _GR = '#51cf66'
 
 type VisaType = 'free' | 'on_arrival' | 'e_visa' | 'eta' | 'visa_required' | 'refugee' | 'permits_only'
 type Region = 'asia' | 'europe' | 'north_america' | 'south_america' | 'africa' | 'oceania' | 'middle_east' | 'caribbean'
@@ -266,7 +258,7 @@ function getDefaultVisaInfo(country: CountryData, fromCountry: CountryData, prof
 
   if (fromCountry.code === 'IN') {
     if (indiaRules[country.name]) {
-      let info = { ...indiaRules[country.name] }
+      const info = { ...indiaRules[country.name] }
       if (profile?.hasUSVisa && info.visaType === 'visa_required') {
         info.tips = [...info.tips, 'US visa holder - some countries may offer easier entry']
       }
@@ -299,8 +291,8 @@ function getVisaTypeIcon(type: VisaType) {
 
 export default function Visa() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
+  const [loading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/visa')
   const [selectedFrom, setSelectedFrom] = useState<string>('')
@@ -329,39 +321,34 @@ export default function Visa() {
   
   // NEW: Profile State
   const [showProfile, setShowProfile] = useState(false)
-  const [profile, setProfile] = useState<TravelerProfile>({
-    passportType: 'regular',
-    visitedCountries: [],
-    hasUSVisa: false,
-    hasUKVisa: false,
-    hasSchengenVisa: false,
-    frequentFlyer: 'none',
-    nationality: 'Indian'
+  const [profile, setProfile] = useState<TravelerProfile>(() => {
+    try {
+      const saved = localStorage.getItem('roamind_visa_profile')
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return {
+      passportType: 'regular',
+      visitedCountries: [],
+      hasUSVisa: false,
+      hasUKVisa: false,
+      hasSchengenVisa: false,
+      frequentFlyer: 'none',
+      nationality: 'Indian'
+    }
   })
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u)
-      setLoading(false)
     })
     return () => unsubscribe()
   }, [])
-
-  // NEW: Load profile from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('roamind_visa_profile')
-    if (saved) setProfile(JSON.parse(saved))
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('roamind_visa_profile', JSON.stringify(profile))
-  }, [profile])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
 
   const filteredFrom = COUNTRIES.filter(c => c.name.toLowerCase().includes(searchFrom.toLowerCase()) || c.code.toLowerCase().includes(searchFrom.toLowerCase()))
@@ -1114,7 +1101,7 @@ export default function Visa() {
           {/* TAB 3: ALL COUNTRIES - ORIGINAL */}
           {activeTab === 'all' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
-              {COUNTRIES.map((country, idx) => (
+              {COUNTRIES.map((country) => (
                 <div key={country.code} onClick={() => { setSelectedTo(country.code); setActiveTab('search') }} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: 16, transition: 'all 0.25s', cursor: 'pointer' }}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = C; e.currentTarget.style.background = 'rgba(99,210,255,0.05)' }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.background = 'rgba(255,255,255,0.025)' }}>
@@ -1222,7 +1209,7 @@ export default function Visa() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Passport Type</label>
-                <select value={profile.passportType} onChange={e => setProfile({ ...profile, passportType: e.target.value as any })} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 10, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none' }}>
+                <select value={profile.passportType} onChange={e => setProfile({ ...profile, passportType: e.target.value as 'regular' | 'official' | 'diplomatic' })} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 10, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none' }}>
                   <option value="regular">Regular Passport</option>
                   <option value="official">Official Passport</option>
                   <option value="diplomatic">Diplomatic Passport</option>
@@ -1262,7 +1249,7 @@ export default function Visa() {
 
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Frequent Flyer Status</label>
-                <select value={profile.frequentFlyer} onChange={e => setProfile({ ...profile, frequentFlyer: e.target.value as any })} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 10, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none' }}>
+                <select value={profile.frequentFlyer} onChange={e => setProfile({ ...profile, frequentFlyer: e.target.value as 'none' | 'silver' | 'gold' | 'platinum' })} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 10, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none' }}>
                   <option value="none">None</option>
                   <option value="silver">Silver ✈️</option>
                   <option value="gold">Gold ✈️</option>

@@ -1,8 +1,9 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -37,7 +38,7 @@ function calculateTotalDistance(visited: string[]): number {
   return total
 }
 
-const navSections = [
+const _navSections = [
   { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
   { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
   { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
@@ -205,10 +206,10 @@ function RealMap({ visited, wishlist, onCountryClick }: { visited: string[], wis
   useEffect(() => {
     if (!loaded || !containerRef.current) return
     
-    let mapInstance: any = null
     let mounted = true
+    let mapInstance: import('leaflet').Map | null = null
 
-    import('leaflet').then((L: any) => {
+    import('leaflet').then((L) => {
       if (!mounted || !containerRef.current) return
       
       const existingContainer = containerRef.current.querySelector('.leaflet-container')
@@ -232,7 +233,7 @@ function RealMap({ visited, wishlist, onCountryClick }: { visited: string[], wis
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap & CARTO'
-      }).addTo(mapInstance)
+          }).addTo(mapInstance!)
 
       const createIcon = (color: string) => {
         return L.divIcon({
@@ -254,7 +255,7 @@ function RealMap({ visited, wishlist, onCountryClick }: { visited: string[], wis
         const coord = countryCoordinates[code]
         const country = allCountries.find(c => c.code === code)
         if (coord && country) {
-          const marker = L.marker(coord, { icon: createIcon('#63d2ff') }).addTo(mapInstance)
+          const marker = L.marker(coord, { icon: createIcon('#63d2ff') }).addTo(mapInstance!)
           marker.bindPopup(`
             <div style="text-align: center; padding: 8px; font-family: system-ui;">
               <span style="font-size: 28px;">${country.flag}</span>
@@ -270,7 +271,7 @@ function RealMap({ visited, wishlist, onCountryClick }: { visited: string[], wis
         const coord = countryCoordinates[code]
         const country = allCountries.find(c => c.code === code)
         if (coord && country) {
-          const marker = L.marker(coord, { icon: createIcon('#ffb74d') }).addTo(mapInstance)
+          const marker = L.marker(coord, { icon: createIcon('#ffb74d') }).addTo(mapInstance!)
           marker.bindPopup(`
             <div style="text-align: center; padding: 8px; font-family: system-ui;">
               <span style="font-size: 28px;">${country.flag}</span>
@@ -290,7 +291,7 @@ function RealMap({ visited, wishlist, onCountryClick }: { visited: string[], wis
             weight: 2,
             opacity: 0.7,
             dashArray: '8, 12'
-          }).addTo(mapInstance)
+      }).addTo(mapInstance!)
         }
       }
     })
@@ -301,7 +302,7 @@ function RealMap({ visited, wishlist, onCountryClick }: { visited: string[], wis
         mapInstance.remove()
       }
     }
-  }, [loaded, mapKey, visited, wishlist])
+  }, [loaded, mapKey, visited, wishlist, onCountryClick])
 
   if (!loaded) {
     return (
@@ -319,7 +320,7 @@ function RealMap({ visited, wishlist, onCountryClick }: { visited: string[], wis
   )
 }
 
-function WorldMapSVG({ visited, onCountryClick }: { visited: string[], onCountryClick: (code: string) => void }) {
+function _WorldMapSVG({ visited, onCountryClick }: { visited: string[], onCountryClick: (code: string) => void }) {
   const countries: Record<string, string> = {
     'IN': 'M350,380 L360,370 L370,375 L365,390 L340,395 L330,385 Z',
     'US': 'M80,180 L180,170 L200,180 L190,220 L150,250 L100,240 Z',
@@ -406,7 +407,7 @@ function WorldMapSVG({ visited, onCountryClick }: { visited: string[], onCountry
 
 export default function TravelPassport() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/passport')
@@ -443,7 +444,7 @@ export default function TravelPassport() {
       if (saved) {
         const data = JSON.parse(saved)
         setCountries(data.countries || {})
-        setSettings({ ...settings, ...data.settings })
+        setSettings(s => ({ ...s, ...data.settings }))
         if (data.lastSaved) setLastSaved(data.lastSaved)
         if (data.passportNumber) setPassportNumber(data.passportNumber)
         else setPassportNumber(generatePassportNumber())
@@ -498,9 +499,9 @@ export default function TravelPassport() {
   }, [])
 
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
-  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
-  const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
+  const _nav = (_path: string) => {}
+  const _firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
+  const _avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
 
   const totalCountries = Object.keys(countries).length
   const totalPhotos = Object.values(countries).reduce((acc, c) => acc + c.visits.reduce((a, v) => a + v.photos.length, 0), 0)
@@ -516,11 +517,11 @@ export default function TravelPassport() {
   const visitedCodes = Object.keys(countries)
   const conts = visitedCodes.map(code => allCountries.find(cn => cn.code === code)?.continent || '').filter(Boolean)
 
-  const getEarnedBadges = (): typeof BADGE_DEFS => {
+  const getEarnedBadges = useCallback((): typeof BADGE_DEFS => {
     return BADGE_DEFS.filter(b => {
       return b.req(totalCountries, continentCounts, totalPhotos, totalRatings, totalNotes, visitedCodes, conts, 0)
     })
-  }
+  }, [totalCountries, continentCounts, totalPhotos, totalRatings, totalNotes, visitedCodes, conts])
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, visitIndex: number) => {
     const file = e.target.files?.[0]
@@ -601,7 +602,7 @@ export default function TravelPassport() {
     setViewMode('stamps')
   }
 
-  const deletePhoto = (countryCode: string, visitIndex: number, photoIndex: number) => {
+  const _deletePhoto = (countryCode: string, visitIndex: number, photoIndex: number) => {
     setCountries(prev => {
       const country = prev[countryCode]
       if (!country) return prev
@@ -650,7 +651,7 @@ export default function TravelPassport() {
 
   const unvisitedCountries = allCountries.filter(c => !visitedCodes.includes(c.code))
   const earnedBadges = getEarnedBadges()
-  const favoriteContinent = Object.entries(continentCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None'
+  const _favoriteContinent = Object.entries(continentCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None'
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: BG, color: '#fff', fontFamily: "'Outfit',sans-serif", overflow: 'hidden' }}>
@@ -773,7 +774,7 @@ export default function TravelPassport() {
                 visited={visitedCodes} 
                 wishlist={settings.wishlist}
                 onCountryClick={(code) => {
-                  const country = allCountries.find(c => c.code === code)
+        const country = allCountries.find(c => c.code === code)
                   if (country) {
                     setSelectedCountry(country)
                     if (visitedCodes.includes(code)) {
@@ -844,7 +845,7 @@ export default function TravelPassport() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                           {country.visits[0]?.photos.slice(0, 3).map((photo, i) => (
                             <div key={i} style={{ width: '100%', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: BG3 }}>
-                              <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <Image src={photo} alt="" fill style={{ objectFit: 'cover' }} unoptimized />
                             </div>
                           ))}
                           {[...Array(Math.max(0, 3 - (country.visits[0]?.photos.length || 0)))].map((_, i) => (
@@ -872,7 +873,7 @@ export default function TravelPassport() {
                 <div style={{ columns: 3, columnGap: 16 }}>
                   {getAllPhotos().map((photo, i) => (
                     <div key={i} style={{ breakInside: 'avoid', marginBottom: 16, position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
-                      <img src={photo.url} alt="" style={{ width: '100%', display: 'block' }} />
+                      <Image src={photo.url} alt="" fill style={{ display: 'block' }} unoptimized />
                       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', opacity: 0.7, display: 'flex', alignItems: 'flex-end', padding: 8 }}>
                         <span style={{ fontSize: 20 }}>{photo.country.flag}</span>
                         <span style={{ fontSize: 12, color: '#fff', marginLeft: 8 }}>{photo.country.name}</span>

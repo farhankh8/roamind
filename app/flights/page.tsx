@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import type { User } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
@@ -9,14 +10,6 @@ const C = '#63d2ff'
 const G = '#ffb74d'
 const R = '#ff6b6b'
 const BG = '#000814'
-
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
 
 const CITIES = [
   { id: 'delhi', name: 'Delhi', code: 'DEL', emoji: '🇮🇳' },
@@ -94,7 +87,27 @@ const FLIGHT_TIPS = [
   { icon: '⏰', title: 'Set Price Alerts', desc: 'Set up price alerts on Google Flights. Get notified when prices drop.' },
 ]
 
-function generateFlights(fromId: string, toId: string): any[] {
+interface Flight {
+  id: string
+  airline: string
+  airlineCode: string
+  airlineColor: string
+  airlineUrl: string
+  from: string
+  fromCode: string
+  to: string
+  toCode: string
+  departure: string
+  arrival: string
+  duration: string
+  durationMin: number
+  stops: number
+  stopDetails: string
+  price: string
+  priceNum: number
+}
+
+function generateFlights(fromId: string, toId: string): Flight[] {
   const from = CITIES.find(c => c.id === fromId)
   const to = CITIES.find(c => c.id === toId)
   if (!from || !to) return []
@@ -103,17 +116,18 @@ function generateFlights(fromId: string, toId: string): any[] {
   const airlines = AIRLINES.slice(0, 8)
   const basePrice = 3000 + Math.random() * 25000
   
-  for (let i = 0; i < 10; i++) {
-    const airline = airlines[i % airlines.length]
-    const stops = Math.random() > 0.5 ? 0 : 1
-    const depHour = 4 + Math.floor(Math.random() * 17)
-    const depMin = Math.floor(Math.random() * 60)
-    const durationBase = 90 + Math.floor(Math.random() * 300) + (stops * 90)
-    const arrHour = (depHour + Math.floor(durationBase / 60)) % 24
-    const arrMin = (depMin + (durationBase % 60)) % 60
-    const stopCity = stops === 1 ? CITIES.filter(c => c.id !== fromId && c.id !== toId)[Math.floor(Math.random() * 10)]?.name : ''
-    const priceMultiplier = stops === 0 ? 1.4 : 1
-    const finalPrice = basePrice * priceMultiplier * (0.8 + Math.random() * 0.4)
+    for (let i = 0; i < 10; i++) {
+      const airline = airlines[i % airlines.length]
+      const stops = Math.random() > 0.5 ? 0 : 1
+      const depHour = 4 + Math.floor(Math.random() * 17)
+      const depMin = Math.floor(Math.random() * 60)
+      const durationBase = 90 + Math.floor(Math.random() * 300) + (stops * 90)
+      const arrHour = (depHour + Math.floor(durationBase / 60)) % 24
+      const arrMin = (depMin + (durationBase % 60)) % 60
+      const availableStopCities = CITIES.filter(c => c.id !== fromId && c.id !== toId)
+      const stopCity = stops === 1 ? availableStopCities[Math.floor(Math.random() * availableStopCities.length)]?.name ?? '' : ''
+      const priceMultiplier = stops === 0 ? 1.4 : 1
+      const finalPrice = basePrice * priceMultiplier * (0.8 + Math.random() * 0.4)
     
     flights.push({
       id: `flight-${i}-${Date.now()}`,
@@ -141,10 +155,10 @@ function generateFlights(fromId: string, toId: string): any[] {
 
 export default function Flights() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activePath, setActivePath] = useState('/flights')
+  const [activePath] = useState('/flights')
 
   const [fromCity, setFromCity] = useState('')
   const [toCity, setToCity] = useState('')
@@ -152,7 +166,7 @@ export default function Flights() {
   const [tripType, setTripType] = useState('oneway')
   const [passengers, setPassengers] = useState(1)
 
-  const [flights, setFlights] = useState<any[]>([])
+  const [flights, setFlights] = useState<Flight[]>([])
   const [hasSearched, setHasSearched] = useState(false)
   const [sortBy, setSortBy] = useState<'price' | 'duration'>('price')
 
@@ -161,13 +175,22 @@ export default function Flights() {
   const [multiCityLegs, setMultiCityLegs] = useState<{from: string; to: string; date: string}[]>([{from: '', to: '', date: ''}])
   const [showMultiCity, setShowMultiCity] = useState(false)
   const [pricePredictor, setPricePredictor] = useState<{show: boolean; prediction: string; confidence: number; trend: 'rise' | 'fall' | 'stable'} | null>(null)
-  const [seatMapFlight, setSeatMapFlight] = useState<any | null>(null)
+  const [seatMapFlight, setSeatMapFlight] = useState<Flight | null>(null)
+  const [seatMapData, setSeatMapData] = useState<{ row: number; col: string; isOccupied: boolean; isPremium: boolean; price: number }[]>([])
   const [priceHistory, setPriceHistory] = useState<{date: string; price: number}[]>([])
   const [filters, setFilters] = useState({ stops: [] as number[], priceRange: [0, 100000] as [number, number], airlines: [] as string[], departureTime: [] as string[] })
   const [showFareCalendar, setShowFareCalendar] = useState(false)
   const [fareCalendarData, setFareCalendarData] = useState<{date: string; price: number; available: boolean}[]>([])
-  const [recentSearches, setRecentSearches] = useState<{from: string; to: string; date: string}[]>([])
-  const [compareFlights, setCompareFlights] = useState<any[]>([])
+  const [recentSearches, setRecentSearches] = useState<{from: string; to: string; date: string}[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('recentFlightSearches')
+      if (saved) {
+        try { return JSON.parse(saved) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [compareFlights, setCompareFlights] = useState<Flight[]>([])
   const [showCompareDrawer, setShowCompareDrawer] = useState(false)
   const [showFiltersPanel, setShowFiltersPanel] = useState(false)
 
@@ -190,15 +213,6 @@ export default function Flights() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('recentFlightSearches')
-      if (saved) {
-        try { setRecentSearches(JSON.parse(saved)) } catch {}
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       localStorage.setItem('recentFlightSearches', JSON.stringify(recentSearches))
     }
   }, [recentSearches])
@@ -209,25 +223,26 @@ export default function Flights() {
     setFareTracker({ active: true, basePrice: base, currentPrice: base, trend: 'stable' })
   }
 
-  const predictPrice = (currentPrice: number): { prediction: string; confidence: number; trend: 'rise' | 'fall' | 'stable' } => {
+  const predictPrice = (): { prediction: string; confidence: number; trend: 'rise' | 'fall' | 'stable' } => {
     const rand = Math.random()
     if (rand < 0.3) return { prediction: 'Expected to drop 10-20%', confidence: 75, trend: 'fall' }
     if (rand < 0.6) return { prediction: 'Expected to rise 5-15%', confidence: 68, trend: 'rise' }
     return { prediction: 'Prices expected to remain stable', confidence: 82, trend: 'stable' }
   }
 
-  const generateSeatMap = (flight: any) => {
+  const handleShowSeatMap = useCallback((flight: Flight) => {
     const rows = 30
-    const seats = []
+    const seats: { row: number; col: string; isOccupied: boolean; isPremium: boolean; price: number }[] = []
     for (let r = 1; r <= rows; r++) {
-      for (let col of ['A', 'B', 'C', 'D', 'E', 'F']) {
+      for (const col of ['A', 'B', 'C', 'D', 'E', 'F']) {
         const isOccupied = Math.random() > 0.7
         const isPremium = r <= 5
         seats.push({ row: r, col, isOccupied, isPremium, price: isPremium ? 150 : 50 })
       }
     }
-    return seats
-  }
+    setSeatMapFlight(flight)
+    setSeatMapData(seats)
+  }, [])
 
   const generatePriceHistory = (basePrice: number) => {
     const data = []
@@ -262,7 +277,7 @@ export default function Flights() {
     setRecentSearches(updated)
   }
 
-  const handleAddToCompare = (flight: any) => {
+  const handleAddToCompare = (flight: Flight) => {
     if (compareFlights.find(f => f.id === flight.id)) return
     if (compareFlights.length >= 3) {
       setCompareFlights([...compareFlights.slice(1), flight])
@@ -281,13 +296,6 @@ export default function Flights() {
     setToCity(temp)
   }
 
-  const handleSearch = () => {
-    if (!fromCity || !toCity) return
-    setHasSearched(true)
-    const results = generateFlights(fromCity, toCity)
-    setFlights(results)
-  }
-
   const handleSearchWithDate = () => {
     if (!fromCity || !toCity || !departDate) return
     setHasSearched(true)
@@ -297,7 +305,7 @@ export default function Flights() {
     if (results.length > 0) {
       const basePrice = results[0].priceNum
       setPriceHistory(generatePriceHistory(basePrice))
-      setPricePredictor({ show: true, ...predictPrice(basePrice) })
+      setPricePredictor({ show: true, ...predictPrice() })
       setFareTracker({ active: true, basePrice, currentPrice: basePrice, trend: 'stable' })
     }
   }
@@ -312,7 +320,6 @@ export default function Flights() {
     return a.durationMin - b.durationMin
   })
 
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
 
   if (loading) return (
@@ -425,7 +432,7 @@ export default function Flights() {
               </div>
               <div style={{ width: 130 }}>
                 <label style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>Class</label>
-                <select value={cabinClass} onChange={(e) => setCabinClass(e.target.value as any)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 10, padding: '12px 14px', color: '#fff', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                <select value={cabinClass} onChange={(e) => setCabinClass(e.target.value as 'economy' | 'business' | 'first')} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 10, padding: '12px 14px', color: '#fff', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
                   <option value="economy" style={{ background: '#05090f' }}>Economy</option>
                   <option value="business" style={{ background: '#05090f' }}>Business</option>
                   <option value="first" style={{ background: '#05090f' }}>First Class</option>
@@ -507,7 +514,7 @@ export default function Flights() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 12, outline: 'none', cursor: 'pointer' }}>
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'price' | 'duration')} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 12, outline: 'none', cursor: 'pointer' }}>
                     <option value="price" style={{ background: '#05090f' }}>Sort: Price</option>
                     <option value="duration" style={{ background: '#05090f' }}>Sort: Duration</option>
                   </select>
@@ -567,7 +574,7 @@ export default function Flights() {
                         <div style={{ fontSize: 24, fontWeight: 900, color: G }}>{flight.price}</div>
                         <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>per person</div>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button onClick={() => setSeatMapFlight(flight)} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.7)', fontSize: 11, cursor: 'pointer', transition: 'all 0.2s' }}
+                          <button onClick={() => handleShowSeatMap(flight)} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.7)', fontSize: 11, cursor: 'pointer', transition: 'all 0.2s' }}
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
                           >💺 Seat Map</button>
@@ -780,7 +787,7 @@ export default function Flights() {
             <div style={{ background: 'rgba(99,210,255,0.05)', border: `1px solid ${C}20`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>AIRCRAFT LAYOUT</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4 }}>
-                {generateSeatMap(seatMapFlight).slice(0, 72).map((seat, idx) => (
+                {seatMapData.slice(0, 72).map((seat, idx) => (
                   <div key={idx} style={{ padding: '8px 4px', borderRadius: 4, fontSize: 10, textAlign: 'center', cursor: seat.isOccupied ? 'not-allowed' : 'pointer', background: seat.isOccupied ? 'rgba(255,107,107,0.3)' : seat.isPremium ? 'rgba(255,183,77,0.2)' : 'rgba(81,207,102,0.2)', color: seat.isOccupied ? R : seat.isPremium ? G : '#51cf66', opacity: seat.isOccupied ? 0.6 : 1 }}>
                     {seat.row}{seat.col}
                   </div>

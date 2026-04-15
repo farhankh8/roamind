@@ -1,23 +1,16 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import type { User } from 'firebase/auth'
+import type { Chart } from 'chart.js'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
 const G = '#ffb74d'
-const R = '#ff6b6b'
 const GR = '#51cf66'
 const BG = '#000814'
-
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
 
 interface CurrencyInfo {
   code: string
@@ -140,17 +133,19 @@ interface ChatMessage {
 export default function Currency() {
   const router = useRouter()
   const chartRef = useRef<HTMLCanvasElement>(null)
-  const chartInstance = useRef<any>(null)
+  const chartInstance = useRef<Chart | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activePath, setActivePath] = useState('/currency')
+  const [activePath] = useState('/currency')
   const [amount, setAmount] = useState('100')
   const [fromCurrency, setFromCurrency] = useState('INR')
   const [toCurrency, setToCurrency] = useState('USD')
   const [liveRate, setLiveRate] = useState<number | null>(null)
+  const [liveRates, setLiveRates] = useState<Record<string, number>>({})
+  const [ratesSource, setRatesSource] = useState<'live' | 'cached' | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [exchangeSpots, setExchangeSpots] = useState<ExchangeSpot[]>([])
   const [spotFilter, setSpotFilter] = useState<'all' | 'bank' | 'forex' | 'atm' | 'app'>('all')
@@ -200,6 +195,37 @@ export default function Currency() {
         () => {}
       )
     }
+  }, [])
+
+  useEffect(() => {
+    const CACHE_KEY = 'roamind_currency_rates'
+    const CACHE_DURATION = 60 * 60 * 1000
+
+    const loadRates = async () => {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached)
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            setLiveRates(data)
+            setRatesSource('cached')
+            return
+          }
+        }
+
+        const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+        const json = await res.json()
+        if (json.rates) {
+          setLiveRates(json.rates)
+          setRatesSource('live')
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ data: json.rates, timestamp: Date.now() }))
+        }
+      } catch {
+        setRatesSource(null)
+      }
+    }
+
+    loadRates()
   }, [])
 
   useEffect(() => {
@@ -268,10 +294,9 @@ export default function Currency() {
 
   const fromCurr = CURRENCIES.find(c => c.code === fromCurrency)
   const toCurr = CURRENCIES.find(c => c.code === toCurrency)
-  const currentRate = liveRate || toCurr?.rate || 1
+  const currentRate = liveRate || (liveRates[toCurrency] && liveRates[fromCurrency] ? liveRates[toCurrency] / liveRates[fromCurrency] : toCurr?.rate) || 1
   const convertedAmount = (parseFloat(amount || '0') / (fromCurr?.rate || 1)) * currentRate
 
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
   const handleLogout = async () => { const { signOut } = await import('firebase/auth'); await signOut(auth); router.push('/landing') }
 
   const showToastMsg = (msg: string, type: 'default' | 'success' = 'default') => {
@@ -352,15 +377,15 @@ export default function Currency() {
       script.onload = () => {
         if (chartInstance.current) chartInstance.current.destroy()
         const ctx = chartRef.current?.getContext('2d')
-        if (ctx && (window as any).Chart) {
-          const baseRate = currentRate
-          const labels = Array.from({ length: 30 }, (_, i) => `Day ${30 - i}`)
-          const data = Array.from({ length: 30 }, (_, i) => {
+          if (ctx && (window as unknown as { Chart: typeof Chart }).Chart) {
+            const baseRate = currentRate
+          const labels = Array.from({ length: 30 }, (_v, idx) => `Day ${30 - idx}`)
+          const data = Array.from({ length: 30 }, () => {
             const variance = (Math.random() - 0.5) * 0.02 * baseRate
             return baseRate + variance
           })
           
-          chartInstance.current = new (window as any).Chart(ctx, {
+          chartInstance.current = new (window as unknown as { Chart: typeof Chart }).Chart(ctx, {
             type: 'line',
             data: {
               labels,
@@ -388,7 +413,7 @@ export default function Currency() {
       }
       document.body.appendChild(script)
     }
-  }, [activeSection, toCurrency, currentRate])
+  }, [activeSection, toCurrency, currentRate, toCurr])
 
   const chartHigh = currentRate * 1.02
   const chartLow = currentRate * 0.98
@@ -413,18 +438,7 @@ export default function Currency() {
     }
   }
 
-  const adjustSlider = (category: string, value: number) => {
-    const total = foodPercent + transportPercent + accomPercent + shoppingPercent + activitiesPercent
-    if (total === 100) return
-    const diff = 100 - total
-    switch (category) {
-      case 'food': setFoodPercent(value); break
-      case 'transport': setTransportPercent(value); break
-      case 'accom': setAccomPercent(value); break
-      case 'shopping': setShoppingPercent(value); break
-      case 'activities': setActivitiesPercent(value); break
-    }
-  }
+
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: BG, color: '#fff', fontFamily: "'Outfit',sans-serif", overflow: 'hidden' }}>
@@ -479,8 +493,15 @@ export default function Currency() {
             <>
               {/* MAIN CONVERTER */}
               <div style={{ background: 'linear-gradient(135deg,rgba(99,210,255,0.08) 0%,rgba(255,183,77,0.05) 100%)', border: '1px solid rgba(99,210,255,0.15)', borderRadius: 20, padding: 24, marginBottom: 20 }}>
-                <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 900, marginBottom: 20, textAlign: 'center', background: `linear-gradient(130deg, #fff, ${C})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>💱 Currency Converter</h2>
-                
+                <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 900, marginBottom: ratesSource ? 12 : 20, textAlign: 'center', background: `linear-gradient(130deg, #fff, ${C})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>💱 Currency Converter</h2>
+                {ratesSource && (
+                  <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: 100, fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: ratesSource === 'live' ? '#51cf66' : 'rgba(255,255,255,0.3)', display: 'inline-block' }} />
+                      {ratesSource === 'live' ? 'Live rates' : 'Cached rates'}
+                    </span>
+                  </div>
+                )}
                 {/* AMOUNT INPUT */}
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Amount</label>
@@ -770,7 +791,7 @@ export default function Currency() {
                   { key: 'atm', label: 'ATMs', icon: '🏧' },
                   { key: 'app', label: 'Apps', icon: '📱' },
                 ].map(f => (
-                  <button key={f.key} onClick={() => setSpotFilter(f.key as any)} style={{ padding: '8px 16px', background: spotFilter === f.key ? 'rgba(99,210,255,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${spotFilter === f.key ? C : 'rgba(255,255,255,0.08)'}`, borderRadius: 8, color: spotFilter === f.key ? C : 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <button key={f.key} onClick={() => setSpotFilter(f.key as 'all' | 'bank' | 'forex' | 'atm' | 'app')} style={{ padding: '8px 16px', background: spotFilter === f.key ? 'rgba(99,210,255,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${spotFilter === f.key ? C : 'rgba(255,255,255,0.08)'}`, borderRadius: 8, color: spotFilter === f.key ? C : 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
                     {f.icon} {f.label}
                   </button>
                 ))}

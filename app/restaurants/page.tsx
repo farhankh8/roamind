@@ -2,9 +2,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
-import { ALL_CITIES, RESTAURANTS_BY_CITY, FOOD_TIPS, BOOKING_PLATFORMS, DELIVERY_PLATFORMS, CUISINE_TYPES, BUDGET_LEVELS, DIETARY_OPTIONS, getMichelinRestaurants } from './data'
+import { ALL_CITIES, RESTAURANTS_BY_CITY, FOOD_TIPS, BUDGET_LEVELS, DIETARY_OPTIONS, getMichelinRestaurants } from './data'
 import { Restaurant } from './types'
 
 const C = '#63d2ff'
@@ -16,7 +16,7 @@ const COLORS = [
   '#ff9800', '#e53935', '#7b1fa2', '#00bcd4', '#4caf50', '#f44336', '#9c27b0', '#3f51b5', '#009688', '#ff5722', '#ffc107', '#673ab7', '#03a9f4', '#e91e63', '#795548', '#607d8b'
 ]
 
-const navSections = [
+const _navSections = [
   { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
   { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
   { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
@@ -24,9 +24,21 @@ const navSections = [
   { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
 ]
 
+const isHiddenGem = (r: Restaurant) => r.rating >= 4.3 && !r.michelin && (r.budget === 'cheap' || r.budget === 'mid')
+
+const getAllRestaurantsData = () => {
+  const restaurants: Restaurant[] = []
+  ALL_CITIES.forEach(city => {
+    if (RESTAURANTS_BY_CITY[city.id]) {
+      restaurants.push(...RESTAURANTS_BY_CITY[city.id])
+    }
+  })
+  return restaurants
+}
+
 export default function Restaurants() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/restaurants')
@@ -35,7 +47,7 @@ export default function Restaurants() {
   const [searchQuery, setSearchQuery] = useState('')
   const [dietFilter, setDietFilter] = useState('all')
   const [budgetFilter, setBudgetFilter] = useState('all')
-  const [cuisineFilter, setCuisineFilter] = useState('all')
+  const [cuisineFilter] = useState('all')
   const [sortMode, setSortMode] = useState('rating')
   const [viewMode, setViewMode] = useState<'all' | 'india' | 'international'>('all')
 
@@ -47,13 +59,44 @@ export default function Restaurants() {
   const [showCompareModal, setShowCompareModal] = useState(false)
 
   // Feature 3: Smart Search Suggestions
-  const [searchSuggestions, setSearchSuggestions] = useState<{type: string, items: Restaurant[]}[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
+  const searchSuggestions = useMemo(() => {
+    if (searchQuery.trim().length < 2) return []
+    const q = searchQuery.toLowerCase()
+    const all = getAllRestaurantsData()
+    const matched: {type: string, items: Restaurant[]}[] = []
+    
+    const nameMatch = all.filter(r => r.name.toLowerCase().includes(q))
+    if (nameMatch.length > 0) matched.push({ type: 'Restaurant', items: nameMatch.slice(0, 5) })
+    
+    const cuisineMatch = all.filter(r => r.cuisine.toLowerCase().includes(q))
+    if (cuisineMatch.length > 0) matched.push({ type: 'Cuisine', items: cuisineMatch.slice(0, 5) })
+    
+    const cityMatch = all.filter(r => r.location.toLowerCase().includes(q))
+    if (cityMatch.length > 0) matched.push({ type: 'City', items: cityMatch.slice(0, 5) })
+    
+    return matched
+  }, [searchQuery])
+  const showSuggestions = searchSuggestions.length > 0
 
   // Feature 4: Personalized For You
-  const [userCuisines, setUserCuisines] = useState<string[]>([])
-  const [recommendedRestaurants, setRecommendedRestaurants] = useState<Restaurant[]>([])
+  const [userCuisines, setUserCuisines] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('recentCuisines')
+        return saved ? JSON.parse(saved) : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  })
+
+  const recommendedRestaurants = useMemo(() => {
+    const all = getAllRestaurantsData()
+    if (userCuisines.length === 0) return []
+    return all.filter(r => userCuisines.includes(r.cuisine)).slice(0, 10)
+  }, [userCuisines])
 
   // Feature 6: Cuisine Trend Tags
   const [cuisineTagFilter, setCuisineTagFilter] = useState('all')
@@ -93,9 +136,6 @@ export default function Restaurants() {
     })
   }, [])
 
-  // Helper functions
-  const isHiddenGem = (r: Restaurant) => r.rating >= 4.3 && !r.michelin && (r.budget === 'cheap' || r.budget === 'mid')
-
   const getBudgetLevel = (budget: string): number => {
     switch (budget) {
       case 'cheap': return 1
@@ -133,7 +173,7 @@ export default function Restaurants() {
 
   const isOpenNow = (openingHours?: string): boolean => {
     if (!openingHours) return true
-    const { day, hour } = getCurrentTime()
+    const { hour } = getCurrentTime()
     return hour >= 11 && hour < 22
   }
 
@@ -147,13 +187,7 @@ export default function Restaurants() {
 
   const isInCompareList = (id: string): boolean => !!compareList.find(r => r.id === id)
 
-  // Load user cuisines from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('recentCuisines')
-      if (saved) setUserCuisines(JSON.parse(saved))
-    } catch (e) { console.log('localStorage not available') }
-  }, [])
+
 
   // Save cuisine when restaurant is clicked
   const handleRestaurantClick = (restaurant: Restaurant) => {
@@ -166,69 +200,10 @@ export default function Restaurants() {
         setUserCuisines(saved)
         localStorage.setItem('recentCuisines', JSON.stringify(saved))
       }
-    } catch (e) { console.log('localStorage not available') }
+    } catch { console.log('localStorage not available') }
   }
 
-  // Calculate recommendations
-  useEffect(() => {
-    const getRestaurants = () => {
-      const restaurants: Restaurant[] = []
-      ALL_CITIES.forEach(city => {
-        if (RESTAURANTS_BY_CITY[city.id]) {
-          restaurants.push(...RESTAURANTS_BY_CITY[city.id])
-        }
-      })
-      return restaurants
-    }
-    const all = getRestaurants()
-    if (userCuisines.length > 0) {
-      const scored = all.map(r => {
-        let score = r.rating * 10
-        if (userCuisines.includes(r.cuisineType)) score += 20
-        if (r.michelin) score += 5
-        return { restaurant: r, score }
-      }).sort((a, b) => b.score - a.score)
-      setRecommendedRestaurants(scored.slice(0, 6).map(s => s.restaurant))
-    } else {
-      const topRated = all.filter(r => r.michelin).sort((a, b) => b.rating - a.rating).slice(0, 6)
-      setRecommendedRestaurants(topRated)
-    }
-  }, [viewMode, userCuisines])
 
-  // Search suggestions
-  const getAllRestaurantsData = () => {
-    const restaurants: Restaurant[] = []
-    ALL_CITIES.forEach(city => {
-      if (RESTAURANTS_BY_CITY[city.id]) {
-        restaurants.push(...RESTAURANTS_BY_CITY[city.id])
-      }
-    })
-    return restaurants
-  }
-
-  useEffect(() => {
-    if (searchQuery.trim().length >= 2) {
-      const q = searchQuery.toLowerCase()
-      const all = getAllRestaurantsData()
-      const matched: {type: string, items: Restaurant[]}[] = []
-      
-      const nameMatch = all.filter(r => r.name.toLowerCase().includes(q))
-      if (nameMatch.length > 0) matched.push({ type: 'Restaurant', items: nameMatch.slice(0, 5) })
-      
-      const cuisineMatch = all.filter(r => r.cuisine.toLowerCase().includes(q))
-      if (cuisineMatch.length > 0) matched.push({ type: 'Cuisine', items: cuisineMatch.slice(0, 5) })
-      
-      const cityMatch = all.filter(r => r.location.toLowerCase().includes(q))
-      if (cityMatch.length > 0) matched.push({ type: 'City', items: cityMatch.slice(0, 5) })
-      
-      setSearchSuggestions(matched)
-      setShowSuggestions(matched.length > 0)
-      setSelectedSuggestionIndex(-1)
-    } else {
-      setShowSuggestions(false)
-      setSearchSuggestions([])
-    }
-  }, [searchQuery, viewMode])
 
   // Keyboard navigation for suggestions
   const handleSuggestionKeyDown = (e: React.KeyboardEvent) => {
@@ -242,10 +217,9 @@ export default function Restaurants() {
     } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
       e.preventDefault()
       handleRestaurantClick(allSuggestions[selectedSuggestionIndex])
-      setShowSuggestions(false)
       setSearchQuery('')
     } else if (e.key === 'Escape') {
-      setShowSuggestions(false)
+      setSearchQuery('')
     }
   }
 
@@ -255,7 +229,7 @@ export default function Restaurants() {
       if (e.key === 'Escape') {
         setSelectedRestaurant(null)
         setShowCompareModal(false)
-        setShowSuggestions(false)
+        setSearchQuery('')
       }
     }
     window.addEventListener('keydown', handleEsc)
@@ -334,7 +308,7 @@ export default function Restaurants() {
     return result
   }, [selectedCity, cityRestaurants, allRestaurants, searchQuery, dietFilter, budgetFilter, cuisineFilter, cuisineTagFilter, showHiddenGemsOnly, sortMode])
 
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
 
   if (loading) return (
@@ -411,7 +385,7 @@ export default function Restaurants() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSuggestionKeyDown}
-                onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+                onFocus={() => {}}
                 style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(99,210,255,0.12)', borderRadius: 10, padding: '12px 16px', color: '#fff', fontSize: 14, outline: 'none', marginBottom: 12 }}
               />
               {/* Smart Search Suggestions Dropdown */}
@@ -424,7 +398,7 @@ export default function Restaurants() {
                         const globalIdx = searchSuggestions.slice(0, gIdx).reduce((acc, g) => acc + g.items.length, 0) + iIdx
                         const isSelected = globalIdx === selectedSuggestionIndex
                         return (
-                          <div key={item.id} onClick={() => { handleRestaurantClick(item); setShowSuggestions(false); setSearchQuery('') }}
+                          <div key={item.id} onClick={() => { handleRestaurantClick(item); setSearchQuery('') }}
                             style={{ padding: '10px 12px', cursor: 'pointer', background: isSelected ? 'rgba(99,210,255,0.15)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
                             <span style={{ fontSize: 20 }}>{item.emoji}</span>
                             <div>
@@ -581,7 +555,7 @@ export default function Restaurants() {
                 )}
               </h2>
               <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'thin' }}>
-                {recommendedRestaurants.map((restaurant, idx) => (
+                {recommendedRestaurants.map((restaurant) => (
                   <div key={restaurant.id} onClick={() => handleRestaurantClick(restaurant)}
                     style={{ minWidth: 240, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 12, cursor: 'pointer', transition: 'all 0.25s', flexShrink: 0, display: 'flex', gap: 10, alignItems: 'center' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = C; e.currentTarget.style.transform = 'translateY(-2px)' }}
@@ -619,7 +593,7 @@ export default function Restaurants() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, marginBottom: 24 }}>
               {filteredRestaurants.map((restaurant, idx) => {
                 const colorIndex = idx % COLORS.length
-                const restaurantColor = COLORS[colorIndex]
+                const _restaurantColor = COLORS[colorIndex]
                 return (
                   <div key={restaurant.id} style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${restaurant.michelin ? G : 'rgba(255,255,255,0.08)'}`, borderRadius: 16, padding: 16, transition: 'all 0.25s', animation: `fadeIn 0.3s ease ${idx * 0.03}s both`, position: 'relative', overflow: 'hidden', cursor: 'pointer' }}
                     onClick={() => handleRestaurantClick(restaurant)}
@@ -719,7 +693,7 @@ export default function Restaurants() {
           <div style={{ marginBottom: 20 }}>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, marginBottom: 14 }}>⭐ Michelin Star Restaurants</h2>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {getMichelinRestaurants().slice(0, 20).map((r, i) => (
+              {getMichelinRestaurants().slice(0, 20).map((r) => (
                 <div key={r.id} style={{ background: 'rgba(255,255,255,0.025)', padding: '6px 14px', borderRadius: 20, border: `1px solid ${G}30`, fontSize: 11, color: G, fontWeight: 600, transition: 'all 0.2s', cursor: 'default' }}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.background = G; e.currentTarget.style.color = '#000814' }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; e.currentTarget.style.color = G }}

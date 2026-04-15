@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -14,7 +14,7 @@ const BG3 = '#0a1628'
 const GR = '#51cf66'
 const PURPLE = '#a855f7'
 
-const navSections = [
+const _navSections = [
   { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
   { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
   { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
@@ -37,9 +37,13 @@ const ACCENTS = [
   { id: 'emerald', color: '#50c878', name: 'Emerald' },
 ]
 const AVATARS = ['✈️', '🌍', '🏖️', '🏔️', '🎭', '🍜', '🚗', '⛵', '🎪', '🗽', '🎨', '🌸']
+void AVATARS;
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'AED', 'AUD', 'CAD', 'SGD', 'THB', 'MYR', 'IDR', 'VND', 'CNY', 'KRW', 'CHF', 'SEK', 'NOK', 'NZD', 'MXN', 'BRL', 'RUB', 'HKD', 'PHP', 'PLN', 'TRY', 'ZAR']
+void CURRENCIES;
 const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']
+void DATE_FORMATS;
 const LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Japanese', 'Chinese', 'Hindi']
+void LANGUAGES;
 const TRAVEL_STYLES = ['Budget', 'Luxury', 'Adventure', 'Solo', 'Family', 'Business', 'Backpacker', 'Foodie', 'Cultural', 'Nature']
 const CARD_STYLES = ['sharp', 'rounded', 'pill']
 const BG_PATTERNS = ['none', 'grid', 'dots', 'noise', 'constellation']
@@ -63,25 +67,25 @@ const KEYBOARD_SHORTCUTS = [
 
 export default function Settings() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
+  const [loading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/settings')
   const [activeTab, setActiveTab] = useState(0)
   const [toast, setToast] = useState<{message: string, type: string} | null>(null)
-  const [tabTransition, setTabTransition] = useState<'left' | 'right'>('left')
+  const [, setTabTransition] = useState<'left' | 'right'>('left')
   const [settingsSearch, setSettingsSearch] = useState('')
   const [apiStatus, setApiStatus] = useState<'none' | 'unverified' | 'connected'>('none')
   const [unsavedChanges, setUnsavedChanges] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [nowTime, setNowTime] = useState(() => Date.now())
   const [manualSave, setManualSave] = useState(false)
-  const [storageBreakdown, setStorageBreakdown] = useState<Record<string, number>>({})
   const [showChangelog, setShowChangelog] = useState(0)
-  const [previewFontSize, setPreviewFontSize] = useState(14)
+  const [previewFontSize] = useState(14)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
   
-  const [settings, setSettings] = useState({
+  const getDefaultSettings = () => ({
     displayName: '',
     nationality: '',
     homeCity: '',
@@ -117,28 +121,62 @@ export default function Settings() {
     autoBackup: false,
   })
 
+  const [settings, setSettings] = useState(() => {
+    if (typeof window === 'undefined') return getDefaultSettings()
+    const stored = localStorage.getItem('roamind_settings')
+    const saved = localStorage.getItem('roamind_settings_ai')
+    const defaults = getDefaultSettings()
+    if (stored) {
+      Object.assign(defaults, JSON.parse(stored))
+    }
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        defaults.aiModel = parsed.aiModel || defaults.aiModel
+      } catch {}
+    }
+    return defaults
+  })
+
   useEffect(() => {
-    try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false) })
-      return () => unsubscribe()
-    } catch { setLoading(false) }
+    const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u) })
+    return () => unsubscribe()
+  }, [])
+
+  const calculateStorage = () => {
+    if (typeof window === 'undefined') return 0
+    let total = 0
+    for (const key in window.localStorage) {
+      if (Object.prototype.hasOwnProperty.call(window.localStorage, key)) {
+        total += window.localStorage.getItem(key)?.length || 0
+      }
+    }
+    return total
+  }
+
+  const loadStorageBreakdown = () => {}
+
+  const storageBreakdown = useMemo(() => {
+    if (typeof window === 'undefined') return {}
+    const breakdown: Record<string, number> = {}
+    const ls = window.localStorage
+    for (const key in ls) {
+      if (Object.prototype.hasOwnProperty.call(ls, key) && key.startsWith('roamind_')) {
+        breakdown[key] = Math.round(((ls.getItem(key)?.length || 0) * 2) / 1024)
+      }
+    }
+    return breakdown
   }, [])
 
   useEffect(() => {
-    const stored = localStorage.getItem('roamind_settings')
-    if (stored) {
-      setSettings({ ...settings, ...JSON.parse(stored) })
-    }
-    calculateStorage()
-    loadStorageBreakdown()
+    const timer = setInterval(() => setNowTime(Date.now()), 60000)
+    return () => clearInterval(timer)
   }, [])
 
   useEffect(() => {
     if (!manualSave) {
       localStorage.setItem('roamind_settings', JSON.stringify(settings))
       document.documentElement.style.setProperty('--accent', settings.accentColor)
-      setUnsavedChanges(false)
-      setLastSaved(new Date())
     }
   }, [settings, manualSave])
 
@@ -149,41 +187,11 @@ export default function Settings() {
     }
   }, [toast])
 
-  useEffect(() => {
-    const saved = localStorage.getItem('roamind_settings')
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      setSettings(prev => ({ ...prev, aiModel: parsed.aiModel || 'claude-sonnet-4-20250514' }))
-    }
-  }, [])
-
-  const calculateStorage = () => {
-    if (typeof window === 'undefined') return 0
-    let total = 0
-    for (let key in window.localStorage) {
-      if (Object.prototype.hasOwnProperty.call(window.localStorage, key)) {
-        total += window.localStorage.getItem(key)?.length || 0
-      }
-    }
-    return total
-  }
-
-  const loadStorageBreakdown = () => {
-    if (typeof window === 'undefined') return
-    const breakdown: Record<string, number> = {}
-    const ls = window.localStorage
-    for (let key in ls) {
-      if (Object.prototype.hasOwnProperty.call(ls, key) && key.startsWith('roamind_')) {
-        breakdown[key] = Math.round(((ls.getItem(key)?.length || 0) * 2) / 1024)
-      }
-    }
-    setStorageBreakdown(breakdown)
-  }
-
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
   const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
+  void firstName; void avatar;
 
   const saveSettings = () => {
     localStorage.setItem('roamind_settings', JSON.stringify(settings))
@@ -193,7 +201,7 @@ export default function Settings() {
     setToast({message: 'Settings saved!', type: 'success'})
   }
 
-  const handleSettingChange = (key: string, value: any) => {
+  const handleSettingChange = (key: string, value: unknown) => {
     setSettings(prev => ({ ...prev, [key]: value }))
     setUnsavedChanges(true)
     if (manualSave) {
@@ -238,7 +246,7 @@ export default function Settings() {
 
   const exportData = () => {
     const data: Record<string, string> = {}
-    for (let key in localStorage) {
+    for (const key in localStorage) {
       if (localStorage.hasOwnProperty(key) && key.startsWith('roamind_')) {
         data[key] = localStorage.getItem(key) || ''
       }
@@ -361,7 +369,7 @@ export default function Settings() {
 
   const getLastSavedText = () => {
     if (!lastSaved) return ''
-    const diff = Math.floor((Date.now() - lastSaved.getTime()) / 1000)
+    const diff = Math.floor((nowTime - lastSaved.getTime()) / 1000)
     if (diff < 60) return 'Saved just now'
     if (diff < 3600) return `Saved ${Math.floor(diff/60)} minutes ago`
     return `Saved ${Math.floor(diff/3600)} hours ago`
@@ -677,7 +685,7 @@ export default function Settings() {
                 <div style={{marginBottom:20,padding:16,background:BG3,borderRadius:12}}>
                   <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginBottom:8}}>Preview</div>
                   <div style={{padding:'12px 20px',background:settings.budgetAlert >= 80 ? R : C,color:settings.budgetAlert >= 80 ? '#fff' : BG,borderRadius:10,fontWeight:500}}>
-                    ⚠️ Budget alert: You've used {settings.budgetAlert}% of your budget
+                    ⚠️ Budget alert: You&apos;ve used {settings.budgetAlert}% of your budget
                   </div>
                 </div>
 
@@ -754,7 +762,7 @@ export default function Settings() {
 
                 <div style={{padding:16,background:R+'10',border:`1px solid ${R}`,borderRadius:12}}>
                   <div style={{fontSize:14,fontWeight:600,color:R,marginBottom:12}}>☢️ Nuclear Reset</div>
-                  <input type="text" placeholder='Type "RESET" to confirm' onChange={(e) => {}} style={{width:'100%',padding:'10px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#fff',fontSize:14,marginBottom:8}} />
+                  <input type="text" placeholder='Type "RESET" to confirm' onChange={() => {}} style={{width:'100%',padding:'10px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#fff',fontSize:14,marginBottom:8}} />
                   <button onClick={resetAll} style={{width:'100%',padding:12,background:R,border:'none',borderRadius:8,color:'#fff',fontWeight:600,cursor:'pointer'}}>Reset All Data</button>
                 </div>
               </div>
@@ -767,7 +775,7 @@ export default function Settings() {
                 
                 {/* WHAT'S NEW */}
                 <div style={{marginBottom:20,padding:16,background:`linear-gradient(135deg, ${PURPLE}20, ${C}10)`,border:`1px solid ${PURPLE}`,borderRadius:14}}>
-                  <div style={{fontSize:12,color:PURPLE,fontWeight:600,marginBottom:4}}>✨ What's New</div>
+                  <div style={{fontSize:12,color:PURPLE,fontWeight:600,marginBottom:4}}>✨ What&apos;s New</div>
                   <div style={{fontSize:14,fontWeight:600}}>Packing List 2.0</div>
                   <div style={{fontSize:12,color:'rgba(255,255,255,0.6)'}}>Smart suggestions, drag-drop, weight tracking & more</div>
                 </div>

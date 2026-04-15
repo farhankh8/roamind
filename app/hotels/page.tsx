@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
+import type { User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -10,7 +11,7 @@ const G = '#ffb74d'
 const R = '#ff6b6b'
 const BG = '#000814'
 
-const navSections = [
+const _navSections = [
   { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
   { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
   { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
@@ -111,7 +112,7 @@ const TIPS_HOTELS = [
 
 export default function Hotels() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/hotels')
@@ -181,13 +182,17 @@ export default function Hotels() {
 
   // Load quiz state
   useEffect(() => {
+    let mounted = true
     try {
       const saved = localStorage.getItem('hotelsTravelStyle')
-      if (saved) {
-        setTravelStyle(saved)
-        setShowQuiz(false)
+      if (saved && mounted) {
+        queueMicrotask(() => {
+          setTravelStyle(saved)
+          setShowQuiz(false)
+        })
       }
-    } catch (e) { console.log('localStorage not available') }
+    } catch { console.log('localStorage not available') }
+    return () => { mounted = false }
   }, [])
 
   // Handle travel style selection
@@ -195,7 +200,7 @@ export default function Hotels() {
     setTravelStyle(style)
     try {
       localStorage.setItem('hotelsTravelStyle', style)
-    } catch (e) { console.log('localStorage not available') }
+    } catch { console.log('localStorage not available') }
     setShowQuiz(false)
   }
 
@@ -220,9 +225,9 @@ export default function Hotels() {
   })
 
   // Get price multiplier for calendar
-  const getPriceMultiplier = (month: number) => {
-    if (month >= 10 || month <= 2) return 1.3 // Peak season
-    if (month >= 6 && month <= 8) return 0.9 // Monsoon/off-season
+  const _getPriceMultiplier = (_month: number) => {
+    if (_month >= 10 || _month <= 2) return 1.3 // Peak season
+    if (_month >= 6 && _month <= 8) return 0.9 // Monsoon/off-season
     return 1.0 // Shoulder season
   }
 
@@ -263,7 +268,7 @@ export default function Hotels() {
     return () => unsubscribe()
   }, [])
 
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
 
   if (loading) return (
@@ -381,7 +386,7 @@ export default function Hotels() {
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Showing results for:</span>
               <span style={{ background: `${C}20`, padding: '4px 12px', borderRadius: 20, fontSize: 12, color: C, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {travelStyle === 'budget' ? '🎒 Budget' : travelStyle === 'business' ? '💼 Business' : travelStyle === 'family' ? '👨‍👩‍👧 Family' : '💑 Romantic'}
-                <button onClick={() => { setTravelStyle(''); try { localStorage.removeItem('hotelsTravelStyle') } catch(e) {} }} style={{ background: 'none', border: 'none', color: C, cursor: 'pointer', fontSize: 14 }}>✕</button>
+                <button onClick={() => { setTravelStyle(''); try { localStorage.removeItem('hotelsTravelStyle') } catch {} }} style={{ background: 'none', border: 'none', color: C, cursor: 'pointer', fontSize: 14 }}>✕</button>
               </span>
             </div>
           )}
@@ -402,7 +407,7 @@ export default function Hotels() {
           {/* Feature 10: Deal of the Day Card */}
           <div style={{ marginBottom: 20 }}>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              ⚡ Today's Hot Deal
+              ⚡ Today&apos;s Hot Deal
             </h2>
             <div style={{ background: `linear-gradient(135deg, ${dealOfTheDay.color}40, ${dealOfTheDay.color}10)`, border: `1px solid ${dealOfTheDay.color}40`, borderRadius: 16, padding: 20, display: 'flex', alignItems: 'center', gap: 16, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(255,107,107,0.9)', padding: '4px 12px', borderRadius: 20, fontSize: 10, fontWeight: 700, color: '#fff' }}>🔥 Up to 40% off</div>
@@ -557,7 +562,7 @@ export default function Hotels() {
                 </div>
               </div>
               <div style={{ background: `${G}15`, padding: '12px', borderRadius: 10, textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>You'd earn approximately</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>You&apos;d earn approximately</div>
                 <div style={{ fontSize: 24, fontWeight: 800, color: G }}>~{Math.round(loyaltyNights * loyaltyAvgPrice * 10)} points</div>
                 <div style={{ fontSize: 11, color: C }}>= ~₹{Math.round(loyaltyNights * loyaltyAvgPrice * 10 * 0.35)} value</div>
               </div>
@@ -783,6 +788,7 @@ function CountdownTimer() {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 })
   
   useEffect(() => {
+    let mounted = true
     const calculateTimeLeft = () => {
       const now = new Date()
       const midnight = new Date(now)
@@ -794,9 +800,9 @@ function CountdownTimer() {
         seconds: Math.floor((diff % (1000 * 60)) / 1000)
       }
     }
-    setTimeLeft(calculateTimeLeft())
-    const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 1000)
-    return () => clearInterval(timer)
+    queueMicrotask(() => { if (mounted) setTimeLeft(calculateTimeLeft()) })
+    const timer = setInterval(() => { if (mounted) setTimeLeft(calculateTimeLeft()) }, 1000)
+    return () => { mounted = false; clearInterval(timer) }
   }, [])
   
   return <span style={{ fontFamily: 'monospace' }}>{String(timeLeft.hours).padStart(2,'0')}:{String(timeLeft.minutes).padStart(2,'0')}:{String(timeLeft.seconds).padStart(2,'0')}</span>

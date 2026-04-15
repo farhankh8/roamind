@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
+import type { User } from 'firebase/auth'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
@@ -13,14 +14,6 @@ const BG2 = '#05090f'
 const BG3 = '#0a1628'
 const GR = '#51cf66'
 const PURPLE = '#a855f7'
-
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
 
 const CATEGORIES = [
   { id: 'accommodation', name: 'Accommodation', icon: '🏨' },
@@ -34,15 +27,6 @@ const CATEGORIES = [
 ]
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'AED', 'AUD', 'CAD', 'SGD', 'THB', 'MYR', 'IDR', 'VND', 'CNY', 'KRW', 'CHF']
-
-const DAILY_COSTS: Record<string, number> = {
-  Japan: 150, 'United States': 120, Switzerland: 180, Norway: 160, Iceland: 140,
-  Australia: 110, Canada: 100, UK: 100, Germany: 90, France: 90,
-  Italy: 85, Spain: 80, Portugal: 70, Greece: 70, Thailand: 45,
-  Vietnam: 35, India: 40, Indonesia: 40, Malaysia: 45, Philippines: 40,
-  Mexico: 60, Brazil: 55, Argentina: 50, 'South Africa': 50, Kenya: 45,
-  Egypt: 40, Turkey: 45, UAE: 100, Singapore: 90, 'New Zealand': 100
-}
 
 const SPLITTERS = ['Me', 'Partner', 'Kids', 'Friend 1', 'Friend 2', 'Friend 3']
 
@@ -82,17 +66,17 @@ interface SavedTrip {
 
 export default function BudgetTracker() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activePath, setActivePath] = useState('/budget')
+  const [activePath] = useState('/budget')
   const [toast, setToast] = useState<{message: string, type: string} | null>(null)
   
   const [trips, setTrips] = useState<SavedTrip[]>([])
   const [selectedTrip, setSelectedTrip] = useState('')
   const [tripBudgets, setTripBudgets] = useState<Record<string, TripBudget>>({})
   const [showAddForm, setShowAddForm] = useState(false)
-  const [showFloatingBtn, setShowFloatingBtn] = useState(true)
+  const [showFloatingBtn] = useState(true)
   const [editingExpense, setEditingExpense] = useState<string | null>(null)
   const [tripDuration, setTripDuration] = useState(7)
   const [showBulkAdd, setShowBulkAdd] = useState(false)
@@ -105,16 +89,15 @@ export default function BudgetTracker() {
   
   const [newExpense, setNewExpense] = useState({
     amount: '', originalCurrency: 'USD', category: 'food', description: '', 
-    date: new Date().toISOString().split('T')[0], method: 'card' as const,
+    date: new Date().toISOString().split('T')[0], method: 'card' as 'cash' | 'card' | 'crypto',
     receipt: '', splitAmong: [] as string[], voiceMemo: '', recurring: false, isDiningOut: false
   })
   const [budgetAmount, setBudgetAmount] = useState('')
   const [currency, setCurrency] = useState('USD')
-  const [categoryBudgets, setCategoryBudgets] = useState<Record<string, number>>({})
+  const [categoryBudgets] = useState<Record<string, number>>({})
   const [exchangeRates, setExchangeRates] = useState<Record<string, { rate: number; lastUpdated: string }>>({})
   const [animatedValues, setAnimatedValues] = useState({ total: 0, spent: 0, remaining: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const voiceInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     try {
@@ -128,8 +111,8 @@ export default function BudgetTracker() {
       const passportData = localStorage.getItem('roamind_passport_v2')
       if (passportData) {
         const data = JSON.parse(passportData)
-        const tripList = Object.values(data.countries || {}).flatMap((c: any) => 
-          c.visits?.map((v: any, i: number) => ({
+        const tripList = Object.values((data.countries || {}) as Record<string, { code: string; name: string; flag: string; visits?: { date: string }[] }>).flatMap((c) => 
+          c.visits?.map((v, i: number) => ({
             id: `${c.code}-${i}`,
             name: c.name,
             country: c.flag,
@@ -156,9 +139,6 @@ export default function BudgetTracker() {
   }, [toast])
 
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
-  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
-  const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
 
   const currentBudget = tripBudgets[selectedTrip] || { 
     tripId: selectedTrip, tripName: trips.find(t => t.id === selectedTrip)?.name || 'Trip', 
@@ -171,7 +151,7 @@ export default function BudgetTracker() {
 
   useEffect(() => {
     if (currentBudget.totalBudget === 0 && totalSpent === 0) return
-    let start = animatedValues.total
+    const start = animatedValues.total
     const end = currentBudget.totalBudget
     const diff = end - start
     const steps = 20
@@ -187,7 +167,7 @@ export default function BudgetTracker() {
       if (step >= steps) clearInterval(timer)
     }, 30)
     return () => clearInterval(timer)
-  }, [selectedTrip])
+  }, [selectedTrip, totalSpent, remaining, animatedValues.total, currentBudget.totalBudget])
 
   const categorySpend = CATEGORIES.reduce((acc, cat) => {
     acc[cat.id] = currentBudget.expenses.filter(e => e.category === cat.id).reduce((sum, e) => sum + (e.convertedAmount || e.amount), 0)
@@ -253,10 +233,6 @@ export default function BudgetTracker() {
     setToast({message: 'Budget updated!', type: 'success'})
   }
 
-  const updateCategoryBudget = (catId: string, amount: number) => {
-    setCategoryBudgets(prev => ({ ...prev, [catId]: amount }))
-  }
-
   const updateExchangeRate = (curr: string, rate: number) => {
     setExchangeRates(prev => ({ ...prev, [curr]: { rate, lastUpdated: new Date().toISOString() } }))
   }
@@ -305,11 +281,11 @@ export default function BudgetTracker() {
     setToast({message: 'Expense deleted', type: 'info'})
   }
 
-  const updateExpense = (expId: string, field: string, value: any) => {
+  const updateExpense = (expId: string, field: string, value: unknown) => {
     const updated = currentBudget.expenses.map(e => {
       if (e.id !== expId) return e
       if (field === 'amount') {
-        const amt = parseFloat(value) || 0
+        const amt = parseFloat(String(value)) || 0
         return { ...e, amount: amt, convertedAmount: convertAmount(amt, e.originalCurrency) }
       }
       return { ...e, [field]: value }
@@ -800,7 +776,7 @@ export default function BudgetTracker() {
               <input type="text" placeholder="Description" value={newExpense.description} onChange={(e) => setNewExpense({...newExpense,description:e.target.value})} style={{padding:'12px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#fff',fontSize:14}} />
               <div style={{display:'flex',gap:8}}>
                 <input type="date" value={newExpense.date} onChange={(e) => setNewExpense({...newExpense,date:e.target.value})} style={{flex:1,padding:'12px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#fff',fontSize:14}} />
-                <select value={newExpense.method} onChange={(e) => setNewExpense({...newExpense,method:e.target.value as any})} style={{padding:'12px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#fff',fontSize:14}}>
+                <select value={newExpense.method} onChange={(e) => setNewExpense({...newExpense,method:e.target.value as 'cash' | 'card' | 'crypto'})} style={{padding:'12px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#fff',fontSize:14}}>
                   <option value="card">Card</option>
                   <option value="cash">Cash</option>
                   <option value="crypto">Crypto</option>

@@ -1,11 +1,20 @@
 export interface Destination {
-  id: string
   name: string
-  state: string
-  category: string
-  description: string
-  bestTime?: string
-  highlights?: string[]
+  state?: string
+  country?: string
+  flag: string
+  tags: string[]
+  img: string
+  budget?: { low: number; mid: number; high: number }
+  dayRate?: { low: number; mid: number; high: number }
+  highlights: string[]
+  food: string[]
+  hotels: { low: string; mid: string; high: string }
+  transport: string
+  bestTime: string
+  emergency: string
+  packing: string[]
+  region?: string
 }
 
 export interface Trip {

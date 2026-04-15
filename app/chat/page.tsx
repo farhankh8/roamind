@@ -1,25 +1,17 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import type { User } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
-const G = '#ffb74d'
 const R = '#ff6b6b'
 const BG = '#000814'
 const BG2 = '#05090f'
 const BG3 = '#0a1628'
 const GR = '#51cf66'
-
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
 
 interface Message {
   id: string
@@ -28,18 +20,9 @@ interface Message {
   timestamp: Date
 }
 
-const QUICK_PROMPTS = [
-  { label: 'Visa for', dataKey: 'wishlistCountry' },
-  { label: 'Pack for', dataKey: 'lastTrip' },
-  { label: 'Hidden gems in', dataKey: 'mostVisited' },
-  { label: 'Compare', dataKey: 'compareCountries' },
-  { label: 'Best time to visit', dataKey: 'wishlistCountry' },
-]
-
 export default function AIChat() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/chat')
   const [messages, setMessages] = useState<Message[]>([])
@@ -51,9 +34,9 @@ export default function AIChat() {
 
   useEffect(() => {
     try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false) })
+      const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u) })
       return () => unsubscribe()
-    } catch { setLoading(false) }
+    } catch {}
   }, [])
 
   useEffect(() => {
@@ -84,8 +67,7 @@ export default function AIChat() {
 
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
   const nav = (path: string) => { setActivePath(path); router.push(path) }
-  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
-  const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
+
 
   const getUserContext = () => {
     const data = localStorage.getItem('roamind_passport_v2')
@@ -131,7 +113,7 @@ export default function AIChat() {
         timestamp: new Date()
       }
       setMessages(prev => [...prev, aiMsg])
-    } catch (error) {
+    } catch {
       setToast({message: 'Failed to get response. Check API key in Settings.', type: 'error'})
     } finally {
       setIsTyping(false)

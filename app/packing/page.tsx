@@ -3,141 +3,38 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
+import type { User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
-const C = '#63d2ff'
-const G = '#ffb74d'
-const BG = '#020810'
-const BG2 = '#05090f'
-const BG3 = '#0a1628'
-const GR = '#4cff91'
-const R = '#ff6b6b'
-const PURPLE = '#a855f7'
-
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
-
-const TRIP_PURPOSES = [
-  { id: 'beach', label: 'Beach', emoji: '🏖️' },
-  { id: 'business', label: 'Business', emoji: '💼' },
-  { id: 'trekking', label: 'Trekking', emoji: '🏔️' },
-  { id: 'winter', label: 'Winter', emoji: '❄️' },
-  { id: 'citybreak', label: 'City Break', emoji: '🏙️' },
-  { id: 'safari', label: 'Safari', emoji: '🦁' },
-  { id: 'festival', label: 'Festival', emoji: '🎉' },
-  { id: 'cruise', label: 'Cruise', emoji: '🚢' },
-]
-
-const DEFAULT_CATEGORIES = [
-  { id: 'documents', emoji: '📄', label: 'Documents' },
-  { id: 'clothing', emoji: '👕', label: 'Clothing' },
-  { id: 'toiletries', emoji: '🧴', label: 'Toiletries' },
-  { id: 'electronics', emoji: '🔌', label: 'Electronics' },
-  { id: 'health', emoji: '💊', label: 'Health & Meds' },
-  { id: 'money', emoji: '💳', label: 'Money & Cards' },
-  { id: 'misc', emoji: '📦', label: 'Misc' },
-  { id: 'snacks', emoji: '🍎', label: 'Snacks & Food' },
-  { id: 'kids', emoji: '🧸', label: 'Kids & Baby' },
-  { id: 'fitness', emoji: '🏋️', label: 'Fitness & Sports' },
-]
-
-const SUGGESTIONS: Record<string, { category: string; item: string; essential: boolean }[]> = {
-  beach: [
-    { category: 'clothing', item: 'Swimsuit', essential: true },
-    { category: 'clothing', item: 'Sunglasses', essential: true },
-    { category: 'clothing', item: 'Flip flops', essential: true },
-    { category: 'toiletries', item: 'Sunscreen SPF50+', essential: true },
-    { category: 'toiletries', item: 'After-sun lotion', essential: false },
-    { category: 'misc', item: 'Beach towel', essential: true },
-    { category: 'misc', item: 'Snorkel gear', essential: false },
-    { category: 'electronics', item: 'Waterproof phone case', essential: false },
-  ],
-  business: [
-    { category: 'documents', item: 'Business cards', essential: false },
-    { category: 'clothing', item: 'Formal shirts', essential: true },
-    { category: 'clothing', item: 'Dress shoes', essential: true },
-    { category: 'clothing', item: 'Blazer', essential: true },
-    { category: 'electronics', item: 'Laptop', essential: true },
-    { category: 'electronics', item: 'Laptop charger', essential: true },
-    { category: 'toiletries', item: 'Iron', essential: false },
-  ],
-  trekking: [
-    { category: 'clothing', item: 'Hiking boots', essential: true },
-    { category: 'clothing', item: 'Rain jacket', essential: true },
-    { category: 'clothing', item: 'Thermal inner wear', essential: true },
-    { category: 'clothing', item: 'Quick-dry clothes', essential: true },
-    { category: 'fitness', item: 'Trekking poles', essential: false },
-    { category: 'health', item: 'Altitude sickness pills', essential: false },
-    { category: 'toiletries', item: 'Insect repellent', essential: true },
-    { category: 'misc', item: 'Headlamp', essential: true },
-  ],
-  winter: [
-    { category: 'clothing', item: 'Winter jacket', essential: true },
-    { category: 'clothing', item: 'Thermal leggings', essential: true },
-    { category: 'clothing', item: 'Gloves', essential: true },
-    { category: 'clothing', item: 'Woolen socks', essential: true },
-    { category: 'clothing', item: 'Scarf', essential: true },
-    { category: 'toiletries', item: 'Lip balm', essential: true },
-    { category: 'toiletries', item: 'Moisturizer', essential: true },
-  ],
-  citybreak: [
-    { category: 'clothing', item: 'Comfortable walking shoes', essential: true },
-    { category: 'clothing', item: 'Casual evening wear', essential: false },
-    { category: 'electronics', item: 'Camera', essential: false },
-    { category: 'toiletries', item: 'Umbrella', essential: false },
-    { category: 'misc', item: 'Guidebook/Map', essential: false },
-  ],
-  safari: [
-    { category: 'clothing', item: 'Neutral earth-tone clothes', essential: true },
-    { category: 'clothing', item: 'Wide-brim hat', essential: true },
-    { category: 'clothing', item: 'Binoculars', essential: true },
-    { category: 'health', item: 'Malaria pills', essential: false },
-    { category: 'toiletries', item: 'Insect repellent', essential: true },
-    { category: 'misc', item: 'Dust mask', essential: false },
-  ],
-  festival: [
-    { category: 'clothing', item: 'Comfortable shoes', essential: true },
-    { category: 'clothing', item: 'Earplugs', essential: false },
-    { category: 'toiletries', item: 'Hand sanitizer', essential: true },
-    { category: 'misc', item: 'Cash', essential: true },
-  ],
-  cruise: [
-    { category: 'clothing', item: 'Formal wear', essential: true },
-    { category: 'clothing', item: 'Sea-sickness pills', essential: false },
-    { category: 'toiletries', item: 'Motion sickness wristbands', essential: false },
-    { category: 'misc', item: 'Passport', essential: true },
-  ],
+interface SavedTrip {
+  id: string
+  date: string
+  savedAt: string
+  destination: string
+  state: string
+  flag: string
+  img: string
+  days: number
+  budget: 'low' | 'mid' | 'high'
+  totalCost: number
+  dailyCost: number
+  travelers: number
+  adults: number
+  children: number
+  stays: string[]
+  hotelName: string
+  highlights: string[]
+  bestTime: string
+  tags: string[]
 }
-
-const PRESET_TEMPLATES = [
-  { id: 'beach_vacation', label: 'Beach Vacation', emoji: '🏖️', purpose: 'beach' },
-  { id: 'business_trip', label: 'Business Trip', emoji: '💼', purpose: 'business' },
-  { id: 'backpacking', label: 'Backpacking', emoji: '🎒', purpose: 'trekking' },
-  { id: 'winter_holiday', label: 'Winter Holiday', emoji: '❄️', purpose: 'winter' },
-  { id: 'safari', label: 'Safari', emoji: '🦁', purpose: 'safari' },
-]
-
-const COMMONLY_FORGOTTEN = [
-  { item: 'Travel Adapter', icon: '🔌' },
-  { item: 'Medications', icon: '💊' },
-  { item: 'Backup Cards', icon: '💳' },
-  { item: 'Passport Copy', icon: '📄' },
-]
-
-const PACKERS = ['Me', 'Partner', 'Kids']
 
 interface PackingItem {
   id: string
   name: string
-  packed: boolean
   quantity: number
-  essential: boolean
   weight?: number
+  packed?: boolean
+  essential?: boolean
   packedBy?: string
 }
 
@@ -149,16 +46,118 @@ interface Category {
   collapsed?: boolean
 }
 
-interface SavedTrip {
-  id: string
-  destination: string
-  date: string
-  purpose?: string
+const C = '#63d2ff'
+const G = '#ffb74d'
+const BG = '#020810'
+const BG2 = '#05090f'
+const BG3 = '#0a1628'
+const GR = '#4cff91'
+const R = '#ff6b6b'
+const PURPLE = '#a855f7'
+
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: 'clothing', emoji: '👕', label: 'Clothing', items: [], collapsed: false },
+  { id: 'toiletries', emoji: '🧴', label: 'Toiletries', items: [], collapsed: false },
+  { id: 'electronics', emoji: '🔌', label: 'Electronics', items: [], collapsed: false },
+  { id: 'documents', emoji: '📄', label: 'Documents', items: [], collapsed: false },
+  { id: 'health', emoji: '💊', label: 'Health & Medicine', items: [], collapsed: false },
+  { id: 'entertainment', emoji: '🎮', label: 'Entertainment', items: [], collapsed: false },
+  { id: 'misc', emoji: '🎒', label: 'Miscellaneous', items: [], collapsed: false },
+]
+
+const PRESET_TEMPLATES = [
+  { id: 'beach', emoji: '🏖️', label: 'Beach Trip', purpose: 'Relaxing beach getaway' },
+  { id: 'business', emoji: '💼', label: 'Business', purpose: 'Business travel essentials' },
+  { id: 'hiking', emoji: '🥾', label: 'Hiking', purpose: 'Outdoor hiking adventure' },
+  { id: 'city', emoji: '🏙️', label: 'City Break', purpose: 'Urban exploration' },
+  { id: 'winter', emoji: '❄️', label: 'Winter', purpose: 'Cold weather travel' },
+  { id: 'camping', emoji: '⛺', label: 'Camping', purpose: 'Outdoor camping essentials' },
+]
+
+const TRIP_PURPOSES = [
+  { id: 'beach', emoji: '🏖️', label: 'Beach Trip' },
+  { id: 'business', emoji: '💼', label: 'Business' },
+  { id: 'hiking', emoji: '🥾', label: 'Hiking' },
+  { id: 'city', emoji: '🏙️', label: 'City Break' },
+  { id: 'winter', emoji: '❄️', label: 'Winter' },
+  { id: 'camping', emoji: '⛺', label: 'Camping' },
+]
+
+const SUGGESTIONS: Record<string, { category: string; item: string; essential: boolean }[]> = {
+  'Relaxing beach getaway': [
+    { category: 'clothing', item: 'Swimsuit', essential: true },
+    { category: 'clothing', item: 'Sunglasses', essential: true },
+    { category: 'clothing', item: 'Flip flops', essential: true },
+    { category: 'clothing', item: 'Beach towel', essential: true },
+    { category: 'toiletries', item: 'Sunscreen SPF 50+', essential: true },
+    { category: 'toiletries', item: 'Aloe vera gel', essential: false },
+    { category: 'health', item: 'After-sun lotion', essential: false },
+  ],
+  'Business travel essentials': [
+    { category: 'clothing', item: 'Formal shirts', essential: true },
+    { category: 'clothing', item: 'Dress pants', essential: true },
+    { category: 'clothing', item: 'Formal shoes', essential: true },
+    { category: 'clothing', item: 'Belt', essential: true },
+    { category: 'electronics', item: 'Laptop', essential: true },
+    { category: 'electronics', item: 'Laptop charger', essential: true },
+    { category: 'electronics', item: 'Business cards', essential: true },
+    { category: 'documents', item: 'Passport/ID', essential: true },
+    { category: 'documents', item: 'Travel itinerary', essential: true },
+  ],
+  'Outdoor hiking adventure': [
+    { category: 'clothing', item: 'Hiking boots', essential: true },
+    { category: 'clothing', item: 'Moisture-wicking socks', essential: true },
+    { category: 'clothing', item: 'Quick-dry pants', essential: true },
+    { category: 'clothing', item: 'Fleece jacket', essential: true },
+    { category: 'entertainment', item: 'Water bottle', essential: true },
+    { category: 'entertainment', item: 'Trail snacks', essential: true },
+    { category: 'health', item: 'First aid kit', essential: true },
+    { category: 'health', item: 'Insect repellent', essential: true },
+  ],
+  'Urban exploration': [
+    { category: 'clothing', item: 'Comfortable walking shoes', essential: true },
+    { category: 'clothing', item: 'Casual outfits', essential: true },
+    { category: 'electronics', item: 'Portable charger', essential: true },
+    { category: 'electronics', item: 'Camera', essential: false },
+    { category: 'entertainment', item: 'City map/guidebook', essential: false },
+    { category: 'documents', item: 'Transit pass', essential: true },
+  ],
+  'Cold weather travel': [
+    { category: 'clothing', item: 'Winter jacket', essential: true },
+    { category: 'clothing', item: 'Thermal underwear', essential: true },
+    { category: 'clothing', item: 'Gloves', essential: true },
+    { category: 'clothing', item: 'Beanie/Winter hat', essential: true },
+    { category: 'clothing', item: 'Scarf', essential: true },
+    { category: 'health', item: 'Lip balm', essential: true },
+    { category: 'health', item: 'Hand warmers', essential: false },
+  ],
+  'Outdoor camping essentials': [
+    { category: 'clothing', item: 'Hiking boots', essential: true },
+    { category: 'entertainment', item: 'Sleeping bag', essential: true },
+    { category: 'entertainment', item: 'Tent', essential: true },
+    { category: 'entertainment', item: 'Flashlight/Headlamp', essential: true },
+    { category: 'health', item: 'First aid kit', essential: true },
+    { category: 'entertainment', item: 'Multi-tool', essential: true },
+    { category: 'entertainment', item: 'Fire starter', essential: true },
+  ],
 }
+
+const COMMONLY_FORGOTTEN = [
+  { item: 'Phone charger', icon: '🔌' },
+  { item: 'Toothbrush', icon: '🪥' },
+  { item: 'Underwear', icon: '🩲' },
+  { item: 'Passport', icon: '🛂' },
+  { item: 'Socks', icon: '🧦' },
+  { item: 'Medications', icon: '💊' },
+  { item: 'Headphones', icon: '🎧' },
+  { item: 'Toothpaste', icon: '🧴' },
+]
+
+const PACKERS = ['Solo', 'Couple', 'Family', 'Friends', 'Group']
 
 export default function PackingPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/packing')
@@ -178,14 +177,34 @@ export default function PackingPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [dragItem, setDragItem] = useState<{catIdx: number; itemIdx: number} | null>(null)
 
-  const confettiRef = useRef<HTMLDivElement>(null)
+  const _confettiRef = useRef<HTMLDivElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
 
   const EMOJI_OPTIONS = ['📁', '📄', '👕', '👖', '👟', '🧥', '🧢', '🕶️', '💍', '👜', '🎒', '🧳', '📱', '🔌', '💻', '📷', '🎧', '🧴', '🪥', '💊', '🩺', '💳', '💵', '🍎', '🍫', '🧸', '🏋️', '🎾', '🏊', '🧘', '📚', '🎮', '🎸', '🎁']
 
+  const [confettiData] = useState(() =>
+    [...Array(50)].map(() => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 2,
+      rotate: Math.random() * 360,
+      round: Math.random() > 0.5,
+    }))
+  )
+
+  const _initializeEmptyCategories = () => {
+    setCategories(DEFAULT_CATEGORIES.map(cat => ({
+      ...cat,
+      items: [],
+      collapsed: false
+    })))
+  }
+
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => { setUser(u); setLoading(false) })
-    return () => unsub()
+    let mounted = true
+    const unsub = onAuthStateChanged(auth, u => { 
+      if (mounted) { setUser(u); setLoading(false) } 
+    })
+    return () => { mounted = false; unsub() }
   }, [])
 
   useEffect(() => {
@@ -193,6 +212,7 @@ export default function PackingPage() {
       const savedTrips = localStorage.getItem('roamind_saved_trips')
       if (savedTrips) {
         const parsed = JSON.parse(savedTrips)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setTrips(parsed)
       }
     } catch {}
@@ -204,12 +224,21 @@ export default function PackingPage() {
         const key = `packing_${selectedTripId}`
         const saved = localStorage.getItem(key)
         if (saved) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setCategories(JSON.parse(saved))
         } else {
-          initializeEmptyCategories()
+          setCategories(DEFAULT_CATEGORIES.map(cat => ({
+            ...cat,
+            items: [],
+            collapsed: false
+          })))
         }
       } catch {
-        initializeEmptyCategories()
+        setCategories(DEFAULT_CATEGORIES.map(cat => ({
+          ...cat,
+          items: [],
+          collapsed: false
+        })))
       }
     }
   }, [selectedTripId])
@@ -238,18 +267,11 @@ export default function PackingPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const initializeEmptyCategories = () => {
-    setCategories(DEFAULT_CATEGORIES.map(cat => ({
-      ...cat,
-      items: [],
-      collapsed: false
-    })))
-  }
-
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
   const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
+  void firstName; void avatar;
 
   const handlePurposeChange = (newPurpose: string) => {
     setPurpose(newPurpose)
@@ -405,7 +427,7 @@ export default function PackingPage() {
 
   const duplicateList = () => {
     if (trips.length < 2) return
-    const currentList = categories
+    const _currentList = categories
     const otherTrips = trips.filter(t => t.id !== selectedTripId)
     if (otherTrips.length === 0) return
     
@@ -516,7 +538,7 @@ export default function PackingPage() {
     </div>
   )
 
-  const progressAngle = (progress / 100) * 360
+  const _progressAngle = (progress / 100) * 360
   const radius = 45
   const circumference = 2 * Math.PI * radius
 
@@ -535,13 +557,13 @@ export default function PackingPage() {
       {/* CONFETTI */}
       {showConfetti && (
         <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999, overflow: 'hidden' }}>
-          {[...Array(50)].map((_, i) => (
+          {confettiData.map((c, i) => (
             <div key={i} className="confetti-piece" style={{
-              left: `${Math.random() * 100}%`,
+              left: `${c.left}%`,
               background: [C, G, GR, PURPLE, '#ff6b6b'][i % 5],
-              animationDelay: `${Math.random() * 2}s`,
-              transform: `rotate(${Math.random() * 360}deg)`,
-              borderRadius: Math.random() > 0.5 ? '50%' : '0',
+              animationDelay: `${c.delay}s`,
+              transform: `rotate(${c.rotate}deg)`,
+              borderRadius: c.round ? '50%' : '0',
             }} />
           ))}
         </div>
@@ -614,7 +636,7 @@ export default function PackingPage() {
               </div>
               {progress === 100 && (
                 <div style={{ marginTop: 8, padding: '8px 12px', background: GR + '20', border: `1px solid ${GR}`, borderRadius: 8, color: GR, fontSize: 13, fontWeight: 600 }}>
-                  🎉 You're ready to go!
+                  🎉 You&apos;re ready to go!
                 </div>
               )}
             </div>

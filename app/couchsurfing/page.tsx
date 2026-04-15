@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -12,14 +12,6 @@ const GR = '#51cf66'
 const PURPLE = '#a855f7'
 const BG = '#000814'
 const GRAY = '#6b7280'
-
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
 
 interface Host {
   id: number
@@ -205,15 +197,6 @@ const COUNTRIES_WITHOUT_HOSTS = [
   { code: 'KZ', name: 'Kazakhstan', flag: '🇰🇿', message: 'Kazakhstan is not yet in our network. We hope to connect soon!' },
 ]
 
-const LANGUAGE_FLAGS: { [key: string]: string } = {
-  'English': '🇬🇧', 'Spanish': '🇪🇸', 'French': '🇫🇷', 'German': '🇩🇪', 'Portuguese': '🇵🇹',
-  'Italian': '🇮🇹', 'Japanese': '🇯🇵', 'Chinese': '🇨🇳', 'Korean': '🇰🇷', 'Arabic': '🇸🇦',
-  'Russian': '🇷🇺', 'Dutch': '🇳🇱', 'Swedish': '🇸🇪', 'Norwegian': '🇳🇴', 'Danish': '🇩🇰',
-  'Finnish': '🇫🇮', 'Polish': '🇵🇱', 'Greek': '🇬🇷', 'Turkish': '🇹🇷', 'Thai': '🇹🇭',
-  'Vietnamese': '🇻🇳', 'Indonesian': '🇮🇩', 'Malay': '🇲🇾', 'Hindi': '🇮🇳', 'Hebrew': '🇮🇱',
-  'Hungarian': '🇭🇺', 'Czech': '🇨🇿', 'Romanian': '🇷🇴', 'Croatian': '🇭🇷', 'Catalan': '🏴',
-}
-
 const ALL_INTERESTS = ['Surfing', 'Hiking', 'Photography', 'Music', 'Cooking', 'Art', 'Wine', 'Beer', 'Nightlife', 'Beach', 'Yoga', 'Meditation', 'History', 'Architecture', 'Cycling', 'Skiing', 'Wildlife', 'Photography', 'Design', 'Fashion', 'Literature', 'Football', 'Cinema', 'Theatre', 'Dance', 'Salsa', 'Tango', 'Jazz', 'Craft Beer', 'Coffee', 'Street Food', 'Markets', 'Temples', 'Museums', 'Gardens', 'Hot Springs', 'Northern Lights', 'Safari', 'Kayaking', 'Sailing', 'Fishing', 'Golf', 'Tennis', 'Running', 'Climbing']
 
 const generateLastActiveDate = (lastActive: string): Date => {
@@ -355,7 +338,7 @@ export default function CouchSurfing() {
   const [searchResults, setSearchResults] = useState<string[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
-  const [selectedCity, setSelectedCity] = useState<string | null>(null)
+  const [, setSelectedCity] = useState<string | null>(null)
   const [filteredHosts, setFilteredHosts] = useState<Host[]>(SAMPLE_HOSTS.slice(0, 12))
   const [selectedHost, setSelectedHost] = useState<Host | null>(null)
   const [showHostModal, setShowHostModal] = useState(false)
@@ -375,7 +358,7 @@ export default function CouchSurfing() {
   const [hoveredHost, setHoveredHost] = useState<number | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [showTripPlanner, setShowTripPlanner] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [, setIsLoading] = useState(false)
   const [showBackToTop, setShowBackToTop] = useState(false)
   const [displayCount, setDisplayCount] = useState(12)
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
@@ -399,7 +382,7 @@ export default function CouchSurfing() {
   const [tripCity, setTripCity] = useState('')
   const [tripInterests, setTripInterests] = useState<string[]>([])
   const [tripNights, setTripNights] = useState(3)
-  const [userKarma, setUserKarma] = useState(247)
+  const [userKarma] = useState(247)
   const [showPlatforms, setShowPlatforms] = useState(false)
 
   const contentRef = useRef<HTMLDivElement>(null)
@@ -414,7 +397,7 @@ export default function CouchSurfing() {
 
   useEffect(() => {
     filterHosts()
-  }, [selectedCountry, selectedCity, filterVerified, filterPlus, sortBy, selectedRegion, filterGender, filterCouchType, filterMaxGuests, filterMinResponse, filterLastActive, filterAmenities])
+  }, [selectedCountry, filterVerified, filterPlus, sortBy, selectedRegion, filterGender, filterCouchType, filterMaxGuests, filterMinResponse, filterLastActive, filterAmenities])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -558,7 +541,7 @@ export default function CouchSurfing() {
     }
 
     setFilteredHosts(result)
-  }, [selectedCountry, selectedCity, filterVerified, filterPlus, sortBy, selectedRegion, filterGender, filterCouchType, filterMaxGuests, filterMinResponse, filterLastActive, filterAmenities, tripCity, tripInterests])
+  }, [selectedCountry, filterVerified, filterPlus, sortBy, selectedRegion, filterGender, filterCouchType, filterMaxGuests, filterMinResponse, filterLastActive, filterAmenities, tripCity, tripInterests])
 
   const activeFilterCount = () => {
     let count = 0
@@ -642,7 +625,7 @@ export default function CouchSurfing() {
     setShowShareModal(false)
   }
 
-  const reportHost = (hostId: number) => {
+  const reportHost = (_hostId: number) => {
     showToastMsg('Report submitted. Thank you for keeping our community safe.')
     setShowReportModal(false)
     setReportHostId(null)
@@ -680,7 +663,7 @@ export default function CouchSurfing() {
     setTimeout(() => setShowToast(false), 3000)
   }
 
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const handleLogout = async () => { const { signOut } = await import('firebase/auth'); await signOut(auth); router.push('/landing') }
 
   const loadMore = () => {

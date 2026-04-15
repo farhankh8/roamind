@@ -66,14 +66,15 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password)
       router.push('/dashboard')
-    } catch (err: any) {
-      const msg = err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password'
+    } catch (err: unknown) {
+      const firebaseError = err as { code?: string }
+      const msg = firebaseError.code === 'auth/invalid-credential' || firebaseError.code === 'auth/wrong-password'
         ? 'Incorrect email or password. Please try again.'
-        : err.code === 'auth/user-not-found'
+        : firebaseError.code === 'auth/user-not-found'
         ? 'No account found with this email. Please sign up.'
-        : err.code === 'auth/invalid-email'
+        : firebaseError.code === 'auth/invalid-email'
         ? 'Please enter a valid email address.'
-        : err.code === 'auth/too-many-requests'
+        : firebaseError.code === 'auth/too-many-requests'
         ? 'Too many failed attempts. Please try again later.'
         : 'Login failed. Please try again.'
       setError(msg)
@@ -104,7 +105,7 @@ export default function LoginPage() {
       await sendPasswordResetEmail(auth, email)
       setResetSent(true)
       setError('')
-    } catch (err: unknown) {
+    } catch {
       setError('Failed to send reset email. Please check your email address.')
     }
   }

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -29,8 +30,13 @@ interface SavedTrip {
 
 export default function SavedTripsPage() {
   const router = useRouter()
-  const [trips, setTrips] = useState<SavedTrip[]>([])
-  const [loading, setLoading] = useState(true)
+  const [trips, setTrips] = useState<SavedTrip[]>(() => {
+    try {
+      const raw = localStorage.getItem('roamind_saved_trips')
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  })
+  const [loading] = useState(false)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [filterBudget, setFilterBudget] = useState<'all' | 'low' | 'mid' | 'high'>('all')
@@ -41,17 +47,9 @@ export default function SavedTripsPage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => {
       if (!u) router.push('/auth/login')
-      setLoading(false)
     })
     return () => unsub()
   }, [router])
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('roamind_saved_trips')
-      if (raw) setTrips(JSON.parse(raw))
-    } catch { setTrips([]) }
-  }, [])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -72,7 +70,7 @@ export default function SavedTripsPage() {
     showToast('🗑️ All saved trips cleared')
   }
 
-  const replan = (trip: SavedTrip) => {
+  const replan = (_trip: SavedTrip) => {
     router.push('/itinerary')
   }
 
@@ -314,7 +312,7 @@ function TripCard({ trip, onDelete, onReplan, budgetLabel, budgetColor }: {
     >
       {/* Image */}
       <div style={{ position: 'relative', height: 160, overflow: 'hidden' }}>
-        <img src={trip.img} alt={trip.destination} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform .5s', transform: hovered ? 'scale(1.06)' : 'scale(1)' }} />
+        <Image src={trip.img} alt={trip.destination} fill style={{ objectFit: 'cover', transition: 'transform .5s', transform: hovered ? 'scale(1.06)' : 'scale(1)' }} unoptimized />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(2,8,16,0.9) 0%,transparent 50%)' }} />
 
         {/* Budget badge */}
@@ -416,7 +414,7 @@ function TripListRow({ trip, onDelete, onReplan, budgetLabel, budgetColor }: {
     >
       {/* Image */}
       <div style={{ width: 80, height: 72, borderRadius: 12, overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
-        <img src={trip.img} alt={trip.destination} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <Image src={trip.img} alt={trip.destination} fill style={{ objectFit: 'cover' }} unoptimized />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(0,0,0,0.5),transparent)' }} />
         <div style={{ position: 'absolute', bottom: 4, left: 0, right: 0, textAlign: 'center', fontSize: 16 }}>{trip.flag}</div>
       </div>

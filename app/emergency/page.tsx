@@ -1,8 +1,9 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import type { User } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -11,15 +12,7 @@ const R = '#ff6b6b'
 const GR = '#51cf66'
 const BG = '#000814'
 
-const navSections = [
-  { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
-  { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
-  { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
-  { title: 'Discover People', items: [{ icon: '👨‍💼', label: 'Local Guides', path: '/guides' }, { icon: '🤝', label: 'Couch Surfing', path: '/couchsurfing' }] },
-  { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
-]
-
-interface EmergencyNumber {
+interface _EmergencyNumber {
   name: string
   number: string
   type: 'police' | 'ambulance' | 'fire' | 'coastguard' | 'rescue' | 'general'
@@ -436,15 +429,17 @@ interface InsuranceInfo {
 
 export default function Emergency() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/emergency')
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [detectedCountry, setDetectedCountry] = useState<CountryEmergencies | null>(null)
   const [locationLoading, setLocationLoading] = useState(true)
-  const [showSOS, setShowSOS] = useState(false)
-  const [sosMessage, setSOSMessage] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [, setShowSOS] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [, setSOSMessage] = useState('')
   const [activeSection, setActiveSection] = useState('numbers')
   const [selectedGuide, setSelectedGuide] = useState<string | null>(null)
   const [showPhraseModal, setShowPhraseModal] = useState(false)
@@ -491,7 +486,7 @@ export default function Emergency() {
     if (insurance) setInsuranceInfo(JSON.parse(insurance))
   }
 
-  const detectLocation = () => {
+  const detectLocation = useCallback(() => {
     setLocationLoading(true)
     const cachedLocation = localStorage.getItem('roamind_last_location')
     const cachedTime = localStorage.getItem('roamind_last_location_time')
@@ -536,7 +531,7 @@ export default function Emergency() {
     } else {
       fallbackToIPLocation()
     }
-  }
+  }, [])
 
   const detectCountryFromCoords = async (lat: number, lng: number) => {
     try {
@@ -571,7 +566,7 @@ export default function Emergency() {
     setLocationLoading(false)
   }
 
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const handleLogout = async () => { const { signOut } = await import('firebase/auth'); await signOut(auth); router.push('/landing') }
 
   const showToastMsg = (msg: string) => {
@@ -929,7 +924,7 @@ export default function Emergency() {
                   <div style={{ height: 300, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
-                      <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>Click "Open in Google Maps" to view</div>
+                      <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>Click &quot;Open in Google Maps&quot; to view</div>
                     </div>
                   </div>
                 </div>

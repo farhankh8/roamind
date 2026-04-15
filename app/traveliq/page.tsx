@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -29,6 +29,7 @@ interface Question {
   explanation: string
   difficulty: 'easy' | 'medium' | 'hard'
   category: string
+  isAi?: boolean
 }
 
 interface QuizState {
@@ -62,114 +63,47 @@ const ACHIEVEMENTS = [
 
 export default function TravelIQ() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/traveliq')
-  const [quizState, setQuizState] = useState<QuizState | null>(null)
+  const [quizState, setQuizState] = useState<QuizState | null>(() => {
+    try {
+      const data = localStorage.getItem('roamind_traveliq')
+      if (data) {
+        const parsed = JSON.parse(data)
+        if (parsed.streak) {
+          const lastDate = new Date(parsed.lastPlayed)
+          const today = new Date()
+          if (today.getTime() - lastDate.getTime() > 86400000 * 2) {
+            parsed.streak = 0
+          }
+          return { ...parsed, currentIndex: 0, score: 0, answered: false, selectedAnswer: null, timeLeft: 20, completed: false }
+        }
+      }
+    } catch {}
+    return null
+  })
   const [categoryFilter, setCategoryFilter] = useState<string>('')
   const [difficultyFilter, setDifficultyFilter] = useState<string>('')
   const [toast, setToast] = useState<{message: string, type: string} | null>(null)
   const [showHistory, setShowHistory] = useState(false)
-  const [quizHistory, setQuizHistory] = useState<QuizHistory[]>([])
+  const [quizHistory, setQuizHistory] = useState<QuizHistory[]>(() => {
+    try {
+      const data = localStorage.getItem('roamind_traveliq')
+      if (data) {
+        const parsed = JSON.parse(data)
+        return parsed.history || []
+      }
+    } catch {}
+    return []
+  })
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [timerDuration, setTimerDuration] = useState(20)
   const [showAchievements, setShowAchievements] = useState(false)
+  const [aiQuestions, setAiQuestions] = useState<Question[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-
-  useEffect(() => {
-    try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false) })
-      return () => unsubscribe()
-    } catch { setLoading(false) }
-  }, [])
-
-  useEffect(() => {
-    const data = localStorage.getItem('roamind_traveliq')
-    if (data) {
-      const parsed = JSON.parse(data)
-      const history = parsed.history || []
-      setQuizHistory(history)
-      if (parsed.streak) {
-        const lastDate = new Date(parsed.lastPlayed)
-        const today = new Date()
-        if (today.getTime() - lastDate.getTime() > 86400000 * 2) {
-          parsed.streak = 0
-        }
-        setQuizState({ ...parsed, currentIndex: 0, score: 0, answered: false, selectedAnswer: null, timeLeft: 20, completed: false })
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (quizState?.timeLeft && quizState.timeLeft > 0 && !quizState.answered && !quizState.completed) {
-      timerRef.current = setTimeout(() => {
-        setQuizState(prev => prev ? { ...prev, timeLeft: prev.timeLeft - 1 } : null)
-      }, 1000)
-    }
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [quizState?.timeLeft, quizState?.answered, quizState?.completed])
-
-  useEffect(() => {
-    if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t) }
-  }, [toast])
-
-  useEffect(() => {
-    if (quizState?.timeLeft === 0 && !quizState.answered) {
-      selectAnswer(-1)
-    }
-  }, [quizState?.timeLeft])
-
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
-  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
-  const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
-
-  const totalXP = quizHistory.reduce((s, x) => s + x.xp, 0)
-  const totalQuizzes = quizHistory.length
-  const avgScore = totalQuizzes > 0 ? (quizHistory.reduce((s, x) => s + x.score, 0) / totalQuizzes).toFixed(1) : 0
-
-  const unlockedAchievements = ACHIEVEMENTS.filter(a => a.condition(quizHistory))
-
-  const generateQuestions = async () => {
-    const apiKey = (() => {
-      const settings = localStorage.getItem('roamind_settings')
-      return settings ? JSON.parse(settings).apiKeys?.anthropic : ''
-    })()
-
-    const sampleQuestions: Question[] = [
-      { question: 'What is the capital of Japan?', options: ['Seoul', 'Beijing', 'Tokyo', 'Bangkok'], answer: 2, explanation: 'Tokyo has been Japan\'s capital since 1868.', difficulty: 'easy', category: 'Capitals' },
-      { question: 'Which country has the most UNESCO World Heritage Sites?', options: ['China', 'Italy', 'Spain', 'Germany'], answer: 1, explanation: 'Italy has 58 UNESCO sites, the most in the world.', difficulty: 'medium', category: 'UNESCO' },
-      { question: 'What is the currency of Brazil?', options: ['Peso', 'Real', 'Sol', 'Guarani'], answer: 1, explanation: 'The Brazilian Real (BRL) has been the official currency since 1994.', difficulty: 'easy', category: 'Currency' },
-      { question: 'Which is the smallest country in the world?', options: ['Monaco', 'Vatican City', 'San Marino', 'Liechtenstein'], answer: 1, explanation: 'Vatican City is only 0.44 sq km - the smallest country.', difficulty: 'easy', category: 'Geography' },
-      { question: 'What language is primarily spoken in Morocco?', options: ['Arabic', 'French', 'Spanish', 'Berber'], answer: 0, explanation: 'Arabic is the official language, though French is widely used.', difficulty: 'medium', category: 'Languages' },
-      { question: 'Which landmark is in Paris?', options: ['Colosseum', 'Big Ben', 'Eiffel Tower', 'Statue of Liberty'], answer: 2, explanation: 'The Eiffel Tower was built in 1889 and is 330m tall.', difficulty: 'easy', category: 'Landmarks' },
-      { question: 'What is the national dish of Japan?', options: ['Kimchi', 'Sushi', 'Pad Thai', 'Pho'], answer: 1, explanation: 'Sushi is Japan\'s most famous culinary export globally.', difficulty: 'easy', category: 'Cuisine' },
-      { question: 'Which country allows visa-free entry for most passports?', options: ['Japan', 'Singapore', 'Germany', 'USA'], answer: 1, explanation: 'Singapore offers visa-free entry to 192+ countries.', difficulty: 'hard', category: 'Visa Free' },
-      { question: 'What is the largest ocean?', options: ['Atlantic', 'Indian', 'Pacific', 'Arctic'], answer: 2, explanation: 'The Pacific covers 165.2 million square km.', difficulty: 'easy', category: 'Geography' },
-      { question: 'Which river is the longest in the world?', options: ['Amazon', 'Nile', 'Yangtze', 'Mississippi'], answer: 1, explanation: 'The Nile is 6,650 km long, slightly longer than Amazon.', difficulty: 'medium', category: 'Geography' },
-      { question: 'What is the largest desert in the world?', options: ['Sahara', 'Arabian', 'Gobi', 'Antarctic'], answer: 3, explanation: 'Antarctica is technically a desert (less than 50mm rain/year).', difficulty: 'hard', category: 'Geography' },
-      { question: 'Which city has the most time zones?', options: ['Paris', 'New York', 'Moscow', 'London'], answer: 2, explanation: 'Russia spans 11 time zones, more than any other country.', difficulty: 'hard', category: 'Geography' },
-    ]
-    
-    let filtered = sampleQuestions
-    if (categoryFilter) filtered = filtered.filter(q => q.category === categoryFilter)
-    if (difficultyFilter) filtered = filtered.filter(q => q.difficulty === difficultyFilter)
-    
-    const shuffled = [...filtered].sort(() => Math.random() - 0.5).slice(0, 10)
-    
-    setQuizState({
-      questions: shuffled,
-      currentIndex: 0,
-      score: 0,
-      answered: false,
-      selectedAnswer: null,
-      timeLeft: timerDuration,
-      completed: false,
-      streak: 0,
-      xp: 0
-    })
-  }
 
   const selectAnswer = (index: number) => {
     if (!quizState || quizState.answered) return
@@ -191,6 +125,125 @@ export default function TravelIQ() {
       setToast({message: 'Correct! +' + Math.round(difficultyPoints * timeBonus) + ' XP', type: 'success'})
     } else {
       setToast({message: 'Wrong! The answer was: ' + quizState.questions[quizState.currentIndex].options[quizState.questions[quizState.currentIndex].answer], type: 'error'})
+    }
+  }
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u) })
+    return () => unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (quizState?.timeLeft && quizState.timeLeft > 0 && !quizState.answered && !quizState.completed) {
+      timerRef.current = setTimeout(() => {
+        setQuizState(prev => prev ? { ...prev, timeLeft: prev.timeLeft - 1 } : null)
+      }, 1000)
+    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [quizState?.timeLeft, quizState?.answered, quizState?.completed])
+
+  useEffect(() => {
+    if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t) }
+  }, [toast])
+
+  useEffect(() => {
+    if (quizState?.timeLeft === 0 && !quizState.answered && !quizState.completed) {
+      const timer = setTimeout(() => {
+        if (quizState && !quizState.answered) {
+          setQuizState(prev => prev ? { ...prev, answered: true, selectedAnswer: -1 } : null)
+        }
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [quizState, quizState?.timeLeft, quizState?.answered, quizState?.completed])
+
+  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
+  const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
+
+  const totalXP = quizHistory.reduce((s, x) => s + x.xp, 0)
+  const totalQuizzes = quizHistory.length
+  const avgScore = totalQuizzes > 0 ? (quizHistory.reduce((s, x) => s + x.score, 0) / totalQuizzes).toFixed(1) : 0
+
+  const unlockedAchievements = ACHIEVEMENTS.filter(a => a.condition(quizHistory))
+
+  const generateQuestions = async () => {
+    const sampleQuestions: Question[] = [
+      { question: 'What is the capital of Japan?', options: ['Seoul', 'Beijing', 'Tokyo', 'Bangkok'], answer: 2, explanation: 'Tokyo has been Japan\'s capital since 1868.', difficulty: 'easy', category: 'Capitals' },
+      { question: 'Which country has the most UNESCO World Heritage Sites?', options: ['China', 'Italy', 'Spain', 'Germany'], answer: 1, explanation: 'Italy has 58 UNESCO sites, the most in the world.', difficulty: 'medium', category: 'UNESCO' },
+      { question: 'What is the currency of Brazil?', options: ['Peso', 'Real', 'Sol', 'Guarani'], answer: 1, explanation: 'The Brazilian Real (BRL) has been the official currency since 1994.', difficulty: 'easy', category: 'Currency' },
+      { question: 'Which is the smallest country in the world?', options: ['Monaco', 'Vatican City', 'San Marino', 'Liechtenstein'], answer: 1, explanation: 'Vatican City is only 0.44 sq km - the smallest country.', difficulty: 'easy', category: 'Geography' },
+      { question: 'What language is primarily spoken in Morocco?', options: ['Arabic', 'French', 'Spanish', 'Berber'], answer: 0, explanation: 'Arabic is the official language, though French is widely used.', difficulty: 'medium', category: 'Languages' },
+      { question: 'Which landmark is in Paris?', options: ['Colosseum', 'Big Ben', 'Eiffel Tower', 'Statue of Liberty'], answer: 2, explanation: 'The Eiffel Tower was built in 1889 and is 330m tall.', difficulty: 'easy', category: 'Landmarks' },
+      { question: 'What is the national dish of Japan?', options: ['Kimchi', 'Sushi', 'Pad Thai', 'Pho'], answer: 1, explanation: 'Sushi is Japan\'s most famous culinary export globally.', difficulty: 'easy', category: 'Cuisine' },
+      { question: 'Which country allows visa-free entry for most passports?', options: ['Japan', 'Singapore', 'Germany', 'USA'], answer: 1, explanation: 'Singapore offers visa-free entry to 192+ countries.', difficulty: 'hard', category: 'Visa Free' },
+      { question: 'What is the largest ocean?', options: ['Atlantic', 'Indian', 'Pacific', 'Arctic'], answer: 2, explanation: 'The Pacific covers 165.2 million square km.', difficulty: 'easy', category: 'Geography' },
+      { question: 'Which river is the longest in the world?', options: ['Amazon', 'Nile', 'Yangtze', 'Mississippi'], answer: 1, explanation: 'The Nile is 6,650 km long, slightly longer than Amazon.', difficulty: 'medium', category: 'Geography' },
+      { question: 'What is the largest desert in the world?', options: ['Sahara', 'Arabian', 'Gobi', 'Antarctic'], answer: 3, explanation: 'Antarctica is technically a desert (less than 50mm rain/year).', difficulty: 'hard', category: 'Geography' },
+      { question: 'Which city has the most time zones?', options: ['Paris', 'New York', 'Moscow', 'London'], answer: 2, explanation: 'Russia spans 11 time zones, more than any other country.', difficulty: 'hard', category: 'Geography' },
+    ]
+
+    let combined = [...sampleQuestions]
+    if (aiQuestions.length > 0) combined = [...combined, ...aiQuestions]
+    
+    let filtered = combined
+    if (categoryFilter) filtered = filtered.filter(q => q.category === categoryFilter)
+    if (difficultyFilter) filtered = filtered.filter(q => q.difficulty === difficultyFilter)
+    
+    const shuffled = [...filtered].sort(() => Math.random() - 0.5).slice(0, 10)
+    
+    setQuizState({
+      questions: shuffled,
+      currentIndex: 0,
+      score: 0,
+      answered: false,
+      selectedAnswer: null,
+      timeLeft: timerDuration,
+      completed: false,
+      streak: 0,
+      xp: 0
+    })
+  }
+
+  const loadAIQuestions = async () => {
+    setAiLoading(true)
+    try {
+      const promptText = "Generate 5 multiple choice travel trivia questions. Each must have exactly 4 options and one correct answer. Mix easy, medium, hard difficulty. Topics: world geography, landmarks, travel tips, cultures, foods, festivals. Return ONLY a valid JSON array with 5 question objects. Each object must have: question (string), options (array of 4 strings), correct (number 0-3), difficulty (string: easy/medium/hard), explanation (string), category (string)."
+      const res = await fetch('/api/anthropic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: promptText }] })
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to load AI questions')
+      let parsed: unknown = null
+      if (Array.isArray(data.restaurants)) parsed = data.restaurants
+      else if (Array.isArray(data)) parsed = data
+      else if (data.content) {
+        const text = Array.isArray(data.content) ? data.content[0]?.text : String(data.content)
+        try { parsed = JSON.parse(text) } catch { parsed = null }
+      }
+      if (!Array.isArray(parsed)) throw new Error('No questions returned')
+      const newQuestions: Question[] = parsed.slice(0, 5).map((q: { question: string; options: string[]; correct?: number; answer?: number; difficulty: string; explanation: string; category: string }) => ({
+        question: q.question,
+        options: q.options,
+        answer: q.correct ?? q.answer ?? 0,
+        difficulty: (q.difficulty === 'easy' || q.difficulty === 'medium' || q.difficulty === 'hard' ? q.difficulty : 'medium') as 'easy' | 'medium' | 'hard',
+        explanation: q.explanation,
+        category: q.category || 'Travel',
+        isAi: true
+      }))
+      setAiQuestions(prev => {
+        const combined = [...prev, ...newQuestions]
+        setToast({ message: `${newQuestions.length} new AI questions added!`, type: 'success' })
+        return combined
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'AI question generation failed'
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setAiLoading(false)
     }
   }
 
@@ -353,10 +406,29 @@ export default function TravelIQ() {
                   <input type="checkbox" checked={soundEnabled} onChange={(e) => setSoundEnabled(e.target.checked)} />
                   <span style={{fontSize:13}}>Sound Effects</span>
                 </label>
+
+                {aiQuestions.length > 0 && (
+                  <div style={{fontSize:12,color:GR,marginBottom:10,textAlign:'center'}}>
+                    🎲 {aiQuestions.length} AI question{aiQuestions.length > 1 ? 's' : ''} in pool — mixed with built-in questions
+                  </div>
+                )}
                 
-                <button onClick={generateQuestions} style={{width:'100%',padding:'18px',background:`linear-gradient(135deg, ${C}, #3b9fd4)`,border:'none',borderRadius:14,color:BG,fontSize:16,fontWeight:700,cursor:'pointer'}}>
-                  {quizState?.completed ? 'Play Again' : 'Start Quiz'}
-                </button>
+                <div style={{display:'flex',gap:10}}>
+                  <button
+                    onClick={loadAIQuestions}
+                    disabled={aiLoading}
+                    style={{flex:'0 0 auto',padding:'12px 16px',background:aiLoading ? BG3 : `${GR}18`,border:`1px solid ${GR}44`,borderRadius:12,color:GR,fontSize:13,fontWeight:600,cursor:aiLoading?'wait':'pointer',display:'flex',alignItems:'center',gap:8,opacity:aiLoading?0.7:1}}
+                  >
+                    {aiLoading ? (
+                      <><span style={{display:'inline-block',width:12,height:12,border:'2px solid rgba(81,207,102,0.3)',borderTopColor:GR,borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>Loading…</>
+                    ) : (
+                      <><span>🎲</span>Load AI Questions</>
+                    )}
+                  </button>
+                  <button onClick={generateQuestions} style={{flex:1,padding:'18px',background:`linear-gradient(135deg, ${C}, #3b9fd4)`,border:'none',borderRadius:14,color:BG,fontSize:16,fontWeight:700,cursor:'pointer'}}>
+                    {quizState?.completed ? 'Play Again' : 'Start Quiz'}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -379,6 +451,9 @@ export default function TravelIQ() {
                 <div style={{display:'flex',gap:8,marginTop:12}}>
                   <span style={{fontSize:11,padding:'4px 8px',background:BG3,borderRadius:4,color:'rgba(255,255,255,0.6)'}}>{quizState.questions[quizState.currentIndex].category}</span>
                   <span style={{fontSize:11,padding:'4px 8px',background:quizState.questions[quizState.currentIndex].difficulty === 'hard' ? R+'30' : quizState.questions[quizState.currentIndex].difficulty === 'medium' ? G+'30' : C+'30',borderRadius:4,color:quizState.questions[quizState.currentIndex].difficulty === 'hard' ? R : quizState.questions[quizState.currentIndex].difficulty === 'medium' ? G : C,textTransform:'capitalize'}}>{quizState.questions[quizState.currentIndex].difficulty}</span>
+                  {quizState.questions[quizState.currentIndex].isAi && (
+                    <span style={{fontSize:11,padding:'4px 8px',background:`${PURPLE}30`,border:`1px solid ${PURPLE}60`,borderRadius:4,color:PURPLE,fontWeight:600}}>AI</span>
+                  )}
                 </div>
               </div>
               

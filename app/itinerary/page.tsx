@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
 
@@ -42,8 +43,8 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
   // ─── SMART ITINERARY BUILDER ──────────────────────────────────────────────────
   function buildItinerary(dest: Destination, days: number, budget: Budget, prefs: string[], stays: string[], adults: number, children: number, isIndia: boolean) {
     const totalPeople = adults + (children * 0.5)
-    const rk = isIndia ? 'budget' : 'dayRate'
-    const dc = (dest as any)[rk]?.[budget] ?? 2000
+    const budgetData = isIndia ? dest.budget : dest.dayRate
+    const dc = budgetData?.[budget] ?? 2000
     const totalCost = Math.round(dc * days * totalPeople)
     const h = dest.highlights
     const foods = dest.food
@@ -530,6 +531,8 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
     const [genP, setGenP] = useState(0)
     const [generating, setGenerating] = useState(false)
     const [result, setResult] = useState<ReturnType<typeof buildItinerary>|null>(null)
+    const [aiEnhanced, setAiEnhanced] = useState<string | null>(null)
+    const [aiLoading, setAiLoading] = useState(false)
     const [activeDay, setActiveDay] = useState(0)
     const [search, setSearch] = useState('')
     const [filter, setFilter] = useState('All')
@@ -550,8 +553,8 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
 
     const calcDays = useCallback(() => {
       if (!budget || !dest) return null
-      const rk = tripType === 'india' ? 'budget' : 'dayRate'
-      const dc = (dest as any)[rk]?.[budget] ?? 2000
+      const budgetData = tripType === 'india' ? dest.budget : dest.dayRate
+      const dc = budgetData?.[budget] ?? 2000
       const tb = parseInt(totalBudget.replace(/\D/g,'')) || 0
       if (!tb) return null
       return Math.max(1, Math.min(30, Math.floor(tb / (dc * Math.max(adults, 1)))))
@@ -580,6 +583,30 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
       if (!result) return
       const ok = saveTrip(result)
       if (ok) { setSavedOk(true); setTimeout(()=>setSavedOk(false), 4000) }
+    }
+
+    const enhanceWithAI = async () => {
+      if (!result) return
+      setAiLoading(true)
+      try {
+        const basicItinerary = result.itinerary.map(day =>
+          `Day ${day.day}: [${day.theme}] ${day.slots.map(s => `${s.time} - ${s.activity} (${s.label})`).join(' | ')}`
+        ).join('\n\n')
+        const prompt = `Trip to ${result.destination.name}, ${result.destination.state || result.destination.country} for ${result.days} days, ${result.budget} budget, ${result.adults + result.children} traveler(s). Preferences: ${prefs.join(', ') || 'culture, food'}. Stay type: ${result.stays.join(', ')}.\n\nBasic itinerary:\n${basicItinerary}\n\nEnhance this itinerary with specific local restaurant names, hidden gems, local tips, cultural insights, and practical advice. Keep the same day structure but make it richer and more detailed. Format your response as enhanced day-by-day content that supplements the existing plan.`
+        const res = await fetch('/api/anthropic', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ city: result.destination.name, country: result.destination.country, prompt })
+        })
+        const data = await res.json()
+        if (!res.ok || data.error) throw new Error(data.error || 'AI enhancement failed')
+        setAiEnhanced(data.restaurants?.[0]?.desc || data.restaurants?.[0]?.mustOrder || data.content?.[0]?.text || data.content || 'Enhancement received.')
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'AI enhancement failed. Please try again.'
+        alert(msg)
+      } finally {
+        setAiLoading(false)
+      }
     }
 
     const stepLabels = ['Budget','Destination','Days','Travelers','Generating','Your Plan']
@@ -769,7 +796,7 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
                     onBlur={e=>{(e.currentTarget as HTMLDivElement).style.transform='translateY(0)';(e.currentTarget as HTMLDivElement).style.boxShadow='none'}}
                     aria-label={`${d.name}, ${d.state||d.country}, ${d.tags[0]}`}
                   >
-                    <img src={d.img} alt={`${d.name} - ${d.state||d.country}`} style={{width:'100%',height:'100%',objectFit:'cover'}} loading="lazy"/>
+                    <Image src={d.img} alt={`${d.name} - ${d.state||d.country}`} fill style={{objectFit:'cover'}} unoptimized />
                     <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(2,8,16,0.92) 0%,transparent 55%)'}}/>
                     <div style={{position:'absolute',bottom:0,left:0,right:0,padding:10}}>
                       <span style={{fontSize:11}}>{d.flag}</span>
@@ -816,8 +843,8 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
 
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:12,marginBottom:22}}>
                 {[2,3,5,7,10,14,21,30].map(d=>{
-                  const rk = tripType==='india'?'budget':'dayRate'
-                  const dc = (dest as any)?.[rk]?.[budget!] ?? 2000
+                  const budgetData = tripType==='india'?dest?.budget:dest?.dayRate
+                  const dc = budgetData?.[budget!] ?? 2000
                   const tc = dc * d * adults
                   return (
                     <div key={d} role="button" tabIndex={0} onClick={()=>setDays(d)} onKeyDown={(e)=>e.key==='Enter'&&setDays(d)} style={{background:'rgba(255,255,255,0.025)',border:`2px solid ${days===d?C+'55':'rgba(255,255,255,0.07)'}`,borderRadius:18,padding:20,cursor:'pointer',transition:'all .3s',position:'relative',transform:days===d?'translateY(-4px)':'translateY(0)',outline:'none'}}
@@ -859,7 +886,7 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
             <div>
               <div style={{marginBottom:24}}>
                 <div style={{fontSize:10,fontWeight:700,letterSpacing:4,textTransform:'uppercase',color:C,marginBottom:9}}>Step 4 — Travelers & Style</div>
-                <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:900,marginBottom:7}}>Who's <em style={{fontStyle:'italic',color:C}}>travelling?</em></h1>
+                <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:900,marginBottom:7}}>Who&apos;s <em style={{fontStyle:'italic',color:C}}>travelling?</em></h1>
               </div>
 
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18,marginBottom:28}}>
@@ -969,6 +996,29 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
                   <div style={{fontSize:12,color:'rgba(255,255,255,0.35)'}}>Total estimated cost</div>
                   <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:3}}>₹{result.dailyCost.toLocaleString()} / day / person</div>
                 </div>
+              </div>
+
+              {/* ENHANCE WITH AI */}
+              <div style={{display:'flex',gap:10,marginBottom:18}}>
+                <button
+                  onClick={enhanceWithAI}
+                  disabled={aiLoading}
+                  style={{padding:'10px 22px',border:`1px solid ${GR}44`,background:`${GR}14`,color:GR,borderRadius:100,fontSize:13,fontWeight:600,cursor:aiLoading?'wait':'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:8,transition:'all .2s',opacity:aiLoading?0.8:1}}
+                >
+                  {aiLoading ? (
+                    <><span style={{display:'inline-block',width:14,height:14,border:'2px solid rgba(76,255,145,0.3)',borderTopColor:GR,borderRadius:'50%',animation:'spinCW .8s linear infinite'}}/>Generating…</>
+                  ) : (
+                    <><span>✨</span>Enhance with AI</>
+                  )}
+                </button>
+                {!aiLoading && aiEnhanced && (
+                  <button
+                    onClick={() => { setAiEnhanced(null) }}
+                    style={{padding:'10px 22px',border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.4)',borderRadius:100,fontSize:13,fontWeight:400,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:8}}
+                  >
+                    Hide AI version
+                  </button>
+                )}
               </div>
 
               {/* SAVE & SHARE BAR */}
@@ -1215,6 +1265,19 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
                 </div>
               )}
 
+              {/* AI ENHANCED VERSION */}
+              {aiEnhanced && (
+                <div style={{background:'linear-gradient(135deg,rgba(76,255,145,0.06) 0%,rgba(99,210,255,0.04) 100%)',border:'1px solid rgba(76,255,145,0.2)',borderRadius:20,padding:'28px 30px',marginTop:20}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
+                    <span style={{fontSize:24}}>✨</span>
+                    <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,background:'linear-gradient(130deg,#fff,rgba(76,255,145,0.8))',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>AI Enhanced Version</h2>
+                  </div>
+                  <div style={{fontSize:14,color:'rgba(255,255,255,0.7)',lineHeight:1.9,whiteSpace:'pre-wrap',fontFamily:"'Outfit',sans-serif"}}>
+                    {aiEnhanced}
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -1260,6 +1323,7 @@ import { INDIA, INTL, type Destination, type Budget } from '@/data/destinations'
           ::-webkit-scrollbar-thumb{background:#63d2ff;border-radius:2px}
           input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.4}
           @keyframes spin{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.15)}}
+          @keyframes spinCW{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
           @keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
           @keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
           @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}

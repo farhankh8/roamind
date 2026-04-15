@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -40,6 +40,32 @@ const POPULAR_CITIES = [
   { name: 'Chennai', country: 'India', lat: 13.0827, lng: 80.2707 },
   { name: 'Kochi', country: 'India', lat: 9.9312, lng: 76.2673 },
 ]
+
+const generateFallbackData = (location: GeoLocation): WeatherData => ({
+  location,
+  current: {
+    temperature: 20 + Math.random() * 15,
+    apparent: 18 + Math.random() * 15,
+    windSpeed: 5 + Math.random() * 20,
+    windDirection: Math.random() * 360,
+    humidity: 50 + Math.random() * 30,
+    weatherCode: 0,
+    visibility: 10,
+    uvIndex: 5,
+    precipitation: 0,
+    cloudCover: 20 + Math.random() * 40,
+    isDay: true,
+  },
+  hourly: { time: [], temperature: [], weatherCode: [], precipitation: [] },
+  daily: { time: [], weatherCode: [], temperatureMax: [], temperatureMin: [], sunrise: [], sunset: [], precipitationProbability: [] },
+  aqi: {
+    usAqi: 50 + Math.random() * 30,
+    pm25: 15 + Math.random() * 20,
+    pm10: 20 + Math.random() * 30,
+    ozone: 30 + Math.random() * 50,
+    no2: 15 + Math.random() * 25,
+  },
+})
 
 const TIPS = [
   { icon: '🌡️', title: 'Pack Layers', desc: 'Weather changes fast. Always pack a light jacket even in summer.' },
@@ -143,7 +169,7 @@ const getUvSeverity = (uv: number): { label: string; color: string } => {
 
 export default function Weather() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/weather')
@@ -160,46 +186,7 @@ export default function Weather() {
   const [loadingCity, setLoadingCity] = useState(false)
   const [alerts, setAlerts] = useState<{ type: string; message: string; severity: string }[]>([])
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
-
-  useEffect(() => {
-    if (selectedCity) {
-      fetchWeatherData(selectedCity)
-    }
-  }, [selectedCity])
-
-  useEffect(() => {
-    if (compareCities.length > 0) {
-      fetchCompareData()
-    }
-  }, [compareCities])
-
-  const searchLocations = async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([])
-      return
-    }
-    try {
-      const res = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en&format=json`
-      )
-      const data = await res.json()
-      if (data.results) {
-        setSearchResults(data.results)
-        setShowDropdown(true)
-      }
-    } catch (err) {
-      console.error('Search error:', err)
-    }
-  }
-
-  const fetchWeatherData = async (location: GeoLocation, retryCount = 0) => {
+  const fetchWeatherData = useCallback(async (location: GeoLocation, retryCount = 0) => {
     setLoadingCity(true)
     try {
       const [weatherRes, aqiRes] = await Promise.all([
@@ -273,55 +260,9 @@ export default function Weather() {
       }
     }
     setLoadingCity(false)
-  }
+  }, [])
 
-  const generateFallbackData = (location: GeoLocation): WeatherData => {
-    const baseTemp = 25 + Math.random() * 10
-    const now = new Date()
-    const hourlyTimes = Array.from({ length: 24 }, (_, i) => new Date(now.getTime() + i * 3600000).toISOString())
-    const dailyTimes = Array.from({ length: 7 }, (_, i) => new Date(now.getTime() + i * 86400000).toISOString().split('T')[0])
-    
-    return {
-      location,
-      current: {
-        temperature: Math.round(baseTemp),
-        apparent: Math.round(baseTemp + 2),
-        windSpeed: 12 + Math.random() * 8,
-        windDirection: Math.random() * 360,
-        humidity: 60 + Math.random() * 20,
-        weatherCode: 1,
-        visibility: 10 + Math.random() * 5,
-        uvIndex: 5 + Math.random() * 3,
-        precipitation: Math.random() * 2,
-        cloudCover: 20 + Math.random() * 30,
-        isDay: true,
-      },
-      hourly: {
-        time: hourlyTimes,
-        temperature: hourlyTimes.map(() => Math.round(baseTemp + Math.sin(Math.random() * 5) * 5)),
-        weatherCode: hourlyTimes.map(() => Math.floor(Math.random() * 5)),
-        precipitation: hourlyTimes.map(() => Math.floor(Math.random() * 50)),
-      },
-      daily: {
-        time: dailyTimes,
-        weatherCode: dailyTimes.map(() => Math.floor(Math.random() * 5)),
-        temperatureMax: dailyTimes.map(() => Math.round(baseTemp + 5 + Math.random() * 5)),
-        temperatureMin: dailyTimes.map(() => Math.round(baseTemp - 3 + Math.random() * 3)),
-        sunrise: dailyTimes.map(() => new Date(now.getTime() + 6 * 3600000).toISOString()),
-        sunset: dailyTimes.map(() => new Date(now.getTime() + 18 * 3600000).toISOString()),
-        precipitationProbability: dailyTimes.map(() => Math.floor(Math.random() * 60)),
-      },
-      aqi: {
-        usAqi: Math.floor(40 + Math.random() * 80),
-        pm25: 10 + Math.random() * 30,
-        pm10: 20 + Math.random() * 40,
-        ozone: 30 + Math.random() * 50,
-        no2: 15 + Math.random() * 25,
-      },
-    }
-  }
-
-  const fetchCompareData = async () => {
+  const fetchCompareData = useCallback(async () => {
     const data: WeatherData[] = []
     for (const city of compareCities) {
       try {
@@ -357,6 +298,45 @@ export default function Weather() {
       }
     }
     setCompareData(data)
+  }, [compareCities])
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u)
+      setLoading(false)
+    })
+    return () => unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (selectedCity) {
+      fetchWeatherData(selectedCity)
+    }
+  }, [selectedCity, fetchWeatherData])
+
+  useEffect(() => {
+    if (compareCities.length > 0) {
+      fetchCompareData()
+    }
+  }, [compareCities, fetchCompareData])
+
+  const searchLocations = async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([])
+      return
+    }
+    try {
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en&format=json`
+      )
+      const data = await res.json()
+      if (data.results) {
+        setSearchResults(data.results)
+        setShowDropdown(true)
+      }
+    } catch (err) {
+      console.error('Search error:', err)
+    }
   }
 
   const nav = (path: string) => { setActivePath(path); router.push(path) }

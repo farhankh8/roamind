@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
+import type { User } from 'firebase/auth'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -15,7 +16,7 @@ const BG3 = '#0a1628'
 const GR = '#51cf66'
 const PURPLE = '#a855f7'
 
-const navSections = [
+const _navSections = [
   { title: 'Plan & Discover', items: [{ icon: '🏠', label: 'Dashboard', path: '/dashboard' }, { icon: '🤖', label: 'AI Itinerary', path: '/itinerary' }] },
   { title: 'Book & Travel', items: [{ icon: '✈️', label: 'Flights', path: '/flights' }, { icon: '🏨', label: 'Hotels', path: '/hotels' }, { icon: '🍽️', label: 'Restaurants', path: '/restaurants' }, { icon: '🚌', label: 'Transport', path: '/transport' }] },
   { title: 'Intelligence', items: [{ icon: '🛂', label: 'Visa Guide', path: '/visa' }, { icon: '💱', label: 'Currency', path: '/currency' }, { icon: '🌤️', label: 'Weather+AQI', path: '/weather' }, { icon: '🆘', label: 'Emergency', path: '/emergency' }] },
@@ -96,7 +97,8 @@ const allCountries = ['All', ...new Set(guides.map(g => g.country))]
 
 export default function GuidesPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/guides')
@@ -112,7 +114,7 @@ export default function GuidesPage() {
   const [favorites, setFavorites] = useState<number[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [selectedGuide, setSelectedGuide] = useState<typeof guides[0] | null>(null)
-  const [selectedCity, setSelectedCity] = useState<string>('')
+  const [, _setSelectedCity] = useState<string>('')
   const [showCompareModal, setShowCompareModal] = useState(false)
   const [compareList, setCompareList] = useState<typeof guides[0][]>([])
   const [showReportModal, setShowReportModal] = useState(false)
@@ -121,17 +123,24 @@ export default function GuidesPage() {
   const [reportSubmitted, setReportSubmitted] = useState(false)
 
   useEffect(() => {
+    let mounted = true
     try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false) })
-      return () => unsubscribe()
-    } catch { setLoading(false) }
+      const unsubscribe = onAuthStateChanged(auth, (u) => { 
+        if (mounted) { 
+          queueMicrotask(() => { setUser(u); setLoading(false) }) 
+        } 
+      })
+      return () => { mounted = false; unsubscribe() }
+    } catch { if (mounted) queueMicrotask(() => setLoading(false)) }
   }, [])
 
   useEffect(() => {
+    let mounted = true
     try {
       const saved = localStorage.getItem('roamind_favorites')
-      if (saved) setFavorites(JSON.parse(saved))
+      if (saved && mounted) queueMicrotask(() => setFavorites(JSON.parse(saved)))
     } catch {}
+    return () => { mounted = false }
   }, [])
 
   useEffect(() => {
@@ -184,9 +193,10 @@ export default function GuidesPage() {
   })
 
   const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const nav = (_path: string) => {}
   const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
   const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
+  void firstName; void avatar;
 
   const hasActiveFilters = searchTerm || selectedSpecialty !== 'All' || selectedLanguage !== 'All' || selectedCountry !== 'All' || priceRange[1] < 10000 || minRating > 0 || verifiedOnly
 
@@ -212,54 +222,67 @@ export default function GuidesPage() {
   if (selectedGuide) {
     const cityInfo = getCityForGuide(selectedGuide.location)
     return (
-      <div style={{ minHeight: '100vh', background: BG, padding: 20 }}>
-        <button onClick={() => setSelectedGuide(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: C, padding: '10px 20px', borderRadius: 10, cursor: 'pointer', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
-          ← Back to Guides
-        </button>
-        <div style={{ background: BG2, borderRadius: 20, padding: 32, border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', marginBottom: 24 }}>
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: selectedGuide.avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700 }}>{selectedGuide.avatar}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <span style={{ color: '#fff', fontWeight: 700, fontSize: 24 }}>{selectedGuide.name}</span>
-                {selectedGuide.verified && <span style={{ color: C }}>✓</span>}
-              </div>
-              <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>{selectedGuide.flag} {selectedGuide.location}, {selectedGuide.country}</div>
-              <div style={{ display: 'flex', gap: 20 }}>
-                <div><span style={{ color: '#fbbf24' }}>★</span> <span style={{ fontWeight: 700 }}>{selectedGuide.rating}</span> <span style={{ color: 'rgba(255,255,255,0.5)' }}>({selectedGuide.reviews} reviews)</span></div>
-                <div style={{ color: 'rgba(255,255,255,0.5)' }}>{selectedGuide.tripsCompleted} trips</div>
-                <div style={{ color: 'rgba(255,255,255,0.5)' }}>{selectedGuide.experience}</div>
+      <div style={{ display: 'flex', minHeight: '100vh', background: BG, color: '#fff' }}>
+        {sidebarOpen && <Sidebar sidebarOpen={sidebarOpen} activePath={activePath} user={user} onLogout={handleLogout} />}
+        <div style={{ flex: 1, marginLeft: sidebarOpen ? 256 : 0, transition: 'margin-left 0.3s' }}>
+          <div style={{ background: `linear-gradient(135deg, ${BG2} 0%, ${BG} 100%)`, padding: '40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: 10, borderRadius: 10, cursor: 'pointer' }}>☰</button>
+              <button onClick={() => setSelectedGuide(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: C, padding: '10px 20px', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                ← Back to Guides
+              </button>
+              <div>
+                <h1 style={{ fontSize: 28, fontWeight: 800 }}>{selectedGuide.name}</h1>
+                <p style={{ color: 'rgba(255,255,255,0.5)' }}>{selectedGuide.flag} {selectedGuide.location}, {selectedGuide.country}</p>
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            {selectedGuide.verified && <span style={{ background: `${C}15`, border: `1px solid ${C}35`, padding: '6px 14px', borderRadius: 20, fontSize: 12, color: C }}>🪪 Verified</span>}
-            {selectedGuide.certified && <span style={{ background: `${PURPLE}15`, border: `1px solid ${PURPLE}35`, padding: '6px 14px', borderRadius: 20, fontSize: 12, color: PURPLE }}>🏆 Certified</span>}
-            {selectedGuide.superhost && <span style={{ background: `${G}15`, border: `1px solid ${G}35`, padding: '6px 14px', borderRadius: 20, fontSize: 12, color: G }}>⭐ Superhost</span>}
-          </div>
-          <p style={{ color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, marginBottom: 24 }}>{selectedGuide.bio}</p>
-          {cityInfo && (
-            <div style={{ marginBottom: 24, padding: 16, background: BG3, borderRadius: 12 }}>
-              <h4 style={{ color: '#fff', marginBottom: 12 }}>📍 {cityInfo.name} Travel Tips</h4>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>{cityInfo.tips}</p>
-              <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                <span>🌡️ Best time: {cityInfo.bestTime}</span>
-                <span>{cityInfo.weather}</span>
+          <div style={{ padding: '32px' }}>
+            <div style={{ background: BG2, borderRadius: 20, padding: 32, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', marginBottom: 24 }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: selectedGuide.avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700 }}>{selectedGuide.avatar}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <span style={{ color: '#fff', fontWeight: 700, fontSize: 24 }}>{selectedGuide.name}</span>
+                    {selectedGuide.verified && <span style={{ color: C }}>✓</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 20 }}>
+                    <div><span style={{ color: '#fbbf24' }}>★</span> <span style={{ fontWeight: 700 }}>{selectedGuide.rating}</span> <span style={{ color: 'rgba(255,255,255,0.5)' }}>({selectedGuide.reviews} reviews)</span></div>
+                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>{selectedGuide.tripsCompleted} trips</div>
+                    <div style={{ color: 'rgba(255,255,255,0.5)' }}>{selectedGuide.experience}</div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                {selectedGuide.verified && <span style={{ background: `${C}15`, border: `1px solid ${C}35`, padding: '6px 14px', borderRadius: 20, fontSize: 12, color: C }}>🪪 Verified</span>}
+                {selectedGuide.certified && <span style={{ background: `${PURPLE}15`, border: `1px solid ${PURPLE}35`, padding: '6px 14px', borderRadius: 20, fontSize: 12, color: PURPLE }}>🏆 Certified</span>}
+                {selectedGuide.superhost && <span style={{ background: `${G}15`, border: `1px solid ${G}35`, padding: '6px 14px', borderRadius: 20, fontSize: 12, color: G }}>⭐ Superhost</span>}
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, marginBottom: 24 }}>{selectedGuide.bio}</p>
+              {cityInfo && (
+                <div style={{ marginBottom: 24, padding: 16, background: BG3, borderRadius: 12 }}>
+                  <h4 style={{ color: '#fff', marginBottom: 12 }}>📍 {cityInfo.name} Travel Tips</h4>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>{cityInfo.tips}</p>
+                  <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                    <span>🌡️ Best time: {cityInfo.bestTime}</span>
+                    <span>{cityInfo.weather}</span>
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+                {selectedGuide.languages.map((l, i) => (
+                  <span key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 20, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{l}</span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button onClick={() => toggleFavorite(selectedGuide.id)} style={{ background: favorites.includes(selectedGuide.id) ? `${R}20` : 'rgba(255,255,255,0.05)', border: `1px solid ${favorites.includes(selectedGuide.id) ? R : 'rgba(255,255,255,0.1)'}`, color: favorites.includes(selectedGuide.id) ? R : '#fff', padding: '12px 20px', borderRadius: 10, cursor: 'pointer', flex: 1 }}>
+                  {favorites.includes(selectedGuide.id) ? '❤️ Saved' : '🤍 Save'}
+                </button>
+                <button onClick={() => { setReportGuide(selectedGuide); setShowReportModal(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '12px 20px', borderRadius: 10, cursor: 'pointer', flex: 1 }}>
+                  🚩 Report
+                </button>
               </div>
             </div>
-          )}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-            {selectedGuide.languages.map((l, i) => (
-              <span key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 20, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{l}</span>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={() => toggleFavorite(selectedGuide.id)} style={{ background: favorites.includes(selectedGuide.id) ? `${R}20` : 'rgba(255,255,255,0.05)', border: `1px solid ${favorites.includes(selectedGuide.id) ? R : 'rgba(255,255,255,0.1)'}`, color: favorites.includes(selectedGuide.id) ? R : '#fff', padding: '12px 20px', borderRadius: 10, cursor: 'pointer', flex: 1 }}>
-              {favorites.includes(selectedGuide.id) ? '❤️ Saved' : '🤍 Save'}
-            </button>
-            <button onClick={() => { setReportGuide(selectedGuide); setShowReportModal(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '12px 20px', borderRadius: 10, cursor: 'pointer', flex: 1 }}>
-              🚩 Report
-            </button>
           </div>
         </div>
       </div>
@@ -498,7 +521,7 @@ export default function GuidesPage() {
               <div style={{ textAlign: 'center', padding: 20, background: `${GR}20`, borderRadius: 12 }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
                 <div style={{ color: GR, fontWeight: 600 }}>Report Submitted!</div>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>We'll review and take action within 24 hours.</p>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>We&apos;ll review and take action within 24 hours.</p>
               </div>
             ) : (
               <button onClick={handleReport} disabled={!reportReason} style={{ width: '100%', background: reportReason ? R : 'rgba(255,255,255,0.1)', color: reportReason ? '#fff' : 'rgba(255,255,255,0.3)', padding: 14, borderRadius: 10, fontWeight: 600, border: 'none', cursor: reportReason ? 'pointer' : 'not-allowed' }}>Submit Report</button>
