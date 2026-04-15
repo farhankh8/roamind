@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 const rateLimit = new Map<string, { count: number; resetTime: number }>()
 
@@ -14,20 +15,38 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
+const requestSchema = z.object({
+  city: z.string().min(1).max(100).trim(),
+  country: z.string().max(100).trim().optional(),
+})
+
+const MAX_TOKENS = 4000
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
+  
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ error: 'Too many requests. Please wait 1 minute.' }, { status: 429 })
   }
 
   try {
     const body = await req.json()
-    const { city, country } = body
+    
+    const validation = requestSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json({ 
+        error: 'Invalid request', 
+        details: validation.error.issues 
+      }, { status: 400 })
+    }
+    
+    const { city, country } = validation.data
 
     const apiKey = process.env.OPENROUTER_API_KEY
     
     if (!apiKey) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
+      console.error('OpenRouter API key not configured')
+      return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
     }
 
     const prompt = `List exactly 20 famous restaurants in ${city}${country ? ', ' + country : ''}. 
@@ -49,18 +68,17 @@ Return ONLY valid JSON array (no markdown, no explanation):
           model: 'google/gemini-2.0-flash-001',
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.3,
-          max_tokens: 4096,
+          max_tokens: MAX_TOKENS,
         })
       }
     )
-
-    const responseText = await response.text()
     
     if (!response.ok) {
-      return NextResponse.json({ error: 'API Error: ' + responseText.substring(0, 200) }, { status: 500 })
+      console.error('OpenRouter API error:', response.status, response.statusText)
+      return NextResponse.json({ error: 'AI service temporarily unavailable' }, { status: 502 })
     }
 
-    const data = JSON.parse(responseText)
+    const data = await response.json()
     const content = data.choices?.[0]?.message?.content
 
     if (!content) {
@@ -72,12 +90,12 @@ Return ONLY valid JSON array (no markdown, no explanation):
     const end = cleanContent.lastIndexOf(']') + 1
     
     if (start === -1) {
-      return NextResponse.json({ error: 'No JSON array found' }, { status: 500 })
+      return NextResponse.json({ error: 'Invalid response format' }, { status: 500 })
     }
 
     const jsonStr = cleanContent.substring(start, end)
     
-    let restaurants;
+    let restaurants
     try {
       restaurants = JSON.parse(jsonStr)
     } catch {
@@ -85,7 +103,7 @@ Return ONLY valid JSON array (no markdown, no explanation):
       try {
         restaurants = JSON.parse(fixedJson)
       } catch {
-        return NextResponse.json({ error: 'Failed to parse data' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 })
       }
     }
 
@@ -95,7 +113,11 @@ Return ONLY valid JSON array (no markdown, no explanation):
 
     return NextResponse.json({ restaurants: restaurants.slice(0, 20) })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Server error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('Gemini API route error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200 })
 }

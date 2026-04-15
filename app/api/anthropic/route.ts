@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 const rateLimit = new Map<string, { count: number; resetTime: number }>()
 
@@ -14,31 +15,56 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
+const requestSchema = z.object({
+  city: z.string().min(1).max(100).trim().optional(),
+  country: z.string().max(100).trim().optional(),
+  cuisine: z.string().max(50).trim().optional(),
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string(),
+  })).optional(),
+  model: z.string().optional(),
+  max_tokens: z.number().optional(),
+})
+
+const MAX_TOKENS = 4000
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
+  
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ error: 'Too many requests. Please wait 1 minute.' }, { status: 429 })
   }
 
   try {
     const body = await req.json()
+    
+    const validation = requestSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json({ 
+        error: 'Invalid request', 
+        details: validation.error.issues 
+      }, { status: 400 })
+    }
+    
+    const data = validation.data
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey || apiKey === 'sk-ant-your-key-here') {
-      return NextResponse.json({ error: 'API key not configured. Please add ANTHROPIC_API_KEY to .env.local' }, { status: 500 })
+      console.error('Anthropic API key not configured')
+      return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
     }
 
     let prompt: string
     let model = 'claude-sonnet-4-20250514'
-    let maxTokens = 8000
+    let maxTokens = MAX_TOKENS
 
-    if (body.messages) {
-      prompt = body.messages[0]?.content || ''
-      model = body.model || model
-      maxTokens = body.max_tokens || maxTokens
+    if (data.messages) {
+      prompt = data.messages[0]?.content || ''
+      model = data.model || model
+      maxTokens = Math.min(data.max_tokens || MAX_TOKENS, MAX_TOKENS)
     } else {
-      const { city, country, cuisine } = body
-      prompt = `You are a world-class food and travel expert. Generate exactly 55 real, famous, and highly-regarded restaurants for ${city}${country ? ', ' + country : ''}${cuisine ? ' specializing in ' + cuisine : ''}.
+      prompt = `You are a world-class food and travel expert. Generate exactly 55 real, famous, and highly-regarded restaurants for ${data.city}${data.country ? ', ' + data.country : ''}${data.cuisine ? ' specializing in ' + data.cuisine : ''}.
 
 For each restaurant provide:
 - id: unique slug
@@ -77,12 +103,12 @@ Return ONLY a valid JSON array with exactly 55 restaurants. No markdown, no expl
     })
 
     if (!response.ok) {
-      const error = await response.text()
-      return NextResponse.json({ error: 'AI service error', details: error }, { status: response.status })
+      console.error('Anthropic API error:', response.status, response.statusText)
+      return NextResponse.json({ error: 'AI service temporarily unavailable' }, { status: 502 })
     }
 
-    const data = await response.json()
-    const content = data.content?.[0]?.text
+    const responseData = await response.json()
+    const content = responseData.content?.[0]?.text
 
     if (!content) {
       return NextResponse.json({ error: 'No response from AI' }, { status: 500 })
@@ -105,8 +131,11 @@ Return ONLY a valid JSON array with exactly 55 restaurants. No markdown, no expl
 
     return NextResponse.json({ restaurants: restaurants.slice(0, 55) })
   } catch (error: unknown) {
-    console.error('Anthropic API error:', error)
-    const message = error instanceof Error ? error.message : 'Server error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('Anthropic API route error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200 })
 }

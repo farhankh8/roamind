@@ -8,9 +8,65 @@ import { Toaster } from 'react-hot-toast'
 validateEnv()
 
 export const metadata: Metadata = {
-  title: 'Roamind — AI Travel Brain',
-  description: 'Your AI-powered travel intelligence platform. Plan, discover and explore the world smarter.',
-  keywords: 'travel, AI, itinerary, hotels, flights, visa, weather, roamind',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://roamind.app'),
+  title: {
+    default: 'Roamind — AI Travel Brain',
+    template: '%s | Roamind',
+  },
+  description: 'Your AI-powered travel intelligence platform. Plan trips, discover restaurants, find hotels, check weather, and get AI-powered travel advice for destinations worldwide.',
+  keywords: [
+    'travel planner',
+    'AI travel assistant',
+    'trip itinerary',
+    'restaurant recommendations',
+    'hotel booking',
+    'flight search',
+    'visa requirements',
+    'travel budget',
+    'packing list',
+    'travel guide',
+  ],
+  authors: [{ name: 'Roamind Team' }],
+  creator: 'Roamind',
+  publisher: 'Roamind',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://roamind.app',
+    siteName: 'Roamind',
+    title: 'Roamind — AI Travel Brain',
+    description: 'Your AI-powered travel intelligence platform. Plan trips, discover restaurants, find hotels, and get AI-powered travel advice.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Roamind - AI Travel Platform',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Roamind — AI Travel Brain',
+    description: 'Your AI-powered travel intelligence platform',
+    images: ['/og-image.png'],
+    creator: '@RoamindAI',
+  },
+  alternates: {
+    canonical: 'https://roamind.app',
+  },
+  category: 'Travel',
 }
 
 export default function RootLayout({
@@ -28,6 +84,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <meta name="theme-color" content="#000814" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body suppressHydrationWarning={true}>
         <ErrorBoundary>{children}</ErrorBoundary>
