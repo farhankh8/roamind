@@ -1579,7 +1579,7 @@ function getScoreColor(score: number): string {
 
 export default function Transport() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/transport')
   
@@ -1652,7 +1652,7 @@ export default function Transport() {
   }, [])
 
   const nav = (_path: string) => {}
-  const handleLogout = async () => { const { signOut } = await import('firebase/auth'); await signOut(auth); router.push('/landing') }
+  const handleLogout = async () => { await doSignOut(); router.push('/landing') }
 
   const toggleFavorite = (cityName: string) => {
     setFavorites(prev => prev.includes(cityName) ? prev.filter(f => f !== cityName) : [...prev, cityName])

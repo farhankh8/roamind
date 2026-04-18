@@ -37,8 +37,10 @@ export default function Sidebar({ sidebarOpen, activePath, user, onLogout }: Sid
       <button 
         className="block md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-md"
         onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={mobileOpen}
       >
-        ☰
+        <span aria-hidden="true">☰</span>
       </button>
 
       {mobileOpen && (

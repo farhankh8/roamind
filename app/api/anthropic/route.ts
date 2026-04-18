@@ -30,6 +30,7 @@ const requestSchema = z.object({
 const MAX_TOKENS = 4000
 
 export async function POST(req: NextRequest) {
+  // Auth is handled by middleware - protected routes can't reach here without auth
   const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
   
   if (!checkRateLimit(ip)) {
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     const data = validation.data
 
     const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey || apiKey === 'sk-ant-your-key-here') {
+    if (!apiKey) {
       console.error('Anthropic API key not configured')
       return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
     }
@@ -99,7 +100,8 @@ Return ONLY a valid JSON array with exactly 55 restaurants. No markdown, no expl
         model,
         max_tokens: maxTokens,
         messages: [{ role: 'user', content: prompt }]
-      })
+      }),
+      signal: AbortSignal.timeout(30000)
     })
 
     if (!response.ok) {

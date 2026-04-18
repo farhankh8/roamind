@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+const _cache = new Map<string, { data: unknown; ts: number }>()
+const CACHE_TTL = 60 * 60 * 1000 // 1 hour
+
 const rateLimit = new Map<string, { count: number; resetTime: number }>()
 
 function checkRateLimit(ip: string): boolean {
@@ -23,6 +26,7 @@ const requestSchema = z.object({
 const MAX_TOKENS = 4000
 
 export async function POST(req: NextRequest) {
+  // Auth is handled by middleware - protected routes can't reach here without auth
   const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
   
   if (!checkRateLimit(ip)) {
@@ -69,7 +73,8 @@ Return ONLY valid JSON array (no markdown, no explanation):
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.3,
           max_tokens: MAX_TOKENS,
-        })
+        }),
+        signal: AbortSignal.timeout(30000)
       }
     )
     

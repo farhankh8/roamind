@@ -64,7 +64,7 @@ export default function LoginPage() {
     }
     setFormErrors({})
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      await signInWithEmailAndPassword(auth, email, password)
       
       // Set session cookie using document.cookie (client-side)
       // Middleware will detect this cookie

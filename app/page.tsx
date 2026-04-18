@@ -74,7 +74,7 @@ export default function SplashPage() {
       img.src = d.img
     })
 
-    const t1 = setTimeout(() => setLogoOut(true), 3200)
+    const t1 = setTimeout(() => setLogoOut(true), 1500)
 
     const t2 = setTimeout(() => {
       setShowInfo(true)
@@ -84,7 +84,7 @@ export default function SplashPage() {
       const interval = setInterval(() => {
         if (idx >= destinations.length) {
           clearInterval(interval)
-          setTimeout(() => setShowBtn(true), 800)
+          setTimeout(() => setShowBtn(true), 500)
           return
         }
         setTextVisible(false)
@@ -92,12 +92,12 @@ export default function SplashPage() {
         setTimeout(() => {
           setCurrentIdx(capturedIdx)
           setTextVisible(true)
-        }, 320)
+        }, 100)
         idx++
-      }, 600)
+      }, 300)
 
       return () => clearInterval(interval)
-    }, 3500)
+    }, 2000)
 
     return () => {
       clearTimeout(t1)

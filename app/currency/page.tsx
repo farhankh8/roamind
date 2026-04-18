@@ -130,7 +130,7 @@ interface ChatMessage {
 
 export default function Currency() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const chartRef = useRef<HTMLCanvasElement>(null)
   const chartInstance = useRef<Chart | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -292,14 +292,14 @@ export default function Currency() {
   const currentRate = liveRate || (liveRates[toCurrency] && liveRates[fromCurrency] ? liveRates[toCurrency] / liveRates[fromCurrency] : toCurr?.rate) || 1
   const convertedAmount = (parseFloat(amount || '0') / (fromCurr?.rate || 1)) * currentRate
 
-  const handleLogout = async () => { const { signOut } = await import('firebase/auth'); await signOut(auth); router.push('/landing') }
-
   const showToastMsg = (msg: string, type: 'default' | 'success' = 'default') => {
     setToastMessage(msg)
     setToastType(type)
     setShowToast(true)
     setTimeout(() => setShowToast(false), 4000)
   }
+
+  const handleLogout = async () => { await doSignOut(); router.push('/landing') }
 
   const openMaps = (spot: ExchangeSpot) => {
     const url = `https://www.google.com/maps/dir/?api=1&origin=${userLocation?.lat || 0},${userLocation?.lng || 0}&destination=${spot.lat},${spot.lng}&travelmode=driving`

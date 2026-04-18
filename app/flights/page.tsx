@@ -153,7 +153,7 @@ function generateFlights(fromId: string, toId: string): Flight[] {
 
 export default function Flights() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath] = useState('/flights')
 
@@ -315,7 +315,7 @@ export default function Flights() {
     return a.durationMin - b.durationMin
   })
 
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => doSignOut().then(() => router.push('/landing'))
 
   if (loading) return (
     <div style={{ position: 'fixed', inset: 0, background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>

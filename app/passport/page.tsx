@@ -406,7 +406,7 @@ function _WorldMapSVG({ visited, onCountryClick }: { visited: string[], onCountr
 
 export default function TravelPassport() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/passport')
   const [countries, setCountries] = useState<Record<string, CountryVisit>>({})
@@ -495,7 +495,7 @@ export default function TravelPassport() {
     return () => window.removeEventListener('keydown', handleEsc)
   }, [])
 
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => doSignOut().then(() => router.push('/landing'))
   const _nav = (_path: string) => {}
   const _firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
   const _avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()

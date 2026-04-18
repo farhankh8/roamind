@@ -155,7 +155,7 @@ const PACKERS = ['Solo', 'Couple', 'Family', 'Friends', 'Group']
 
 export default function PackingPage() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/packing')
   
@@ -262,7 +262,7 @@ export default function PackingPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => doSignOut().then(() => router.push('/landing'))
   const nav = (_path: string) => {}
   const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
   const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()

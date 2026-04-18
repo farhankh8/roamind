@@ -329,7 +329,7 @@ const REST_FEATURES = [
 
 export default function CouchSurfing() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/couchsurfing')
   const [searchQuery, setSearchQuery] = useState('')
@@ -390,10 +390,6 @@ export default function CouchSurfing() {
       router.push('/auth/login')
     }
   }, [user, loading])
-
-  useEffect(() => {
-    filterHosts()
-  }, [selectedCountry, filterVerified, filterPlus, sortBy, selectedRegion, filterGender, filterCouchType, filterMaxGuests, filterMinResponse, filterLastActive, filterAmenities])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -539,6 +535,10 @@ export default function CouchSurfing() {
     setFilteredHosts(result)
   }, [selectedCountry, filterVerified, filterPlus, sortBy, selectedRegion, filterGender, filterCouchType, filterMaxGuests, filterMinResponse, filterLastActive, filterAmenities, tripCity, tripInterests])
 
+  useEffect(() => {
+    filterHosts()
+  }, [selectedCountry, filterVerified, filterPlus, sortBy, selectedRegion, filterGender, filterCouchType, filterMaxGuests, filterMinResponse, filterLastActive, filterAmenities, filterHosts])
+
   const activeFilterCount = () => {
     let count = 0
     if (filterVerified) count++
@@ -660,7 +660,7 @@ export default function CouchSurfing() {
   }
 
   const nav = (_path: string) => {}
-  const handleLogout = async () => { const { signOut } = await import('firebase/auth'); await signOut(auth); router.push('/landing') }
+  const handleLogout = async () => { await doSignOut(); router.push('/landing') }
 
   const loadMore = () => {
     setDisplayCount(prev => prev + 12)

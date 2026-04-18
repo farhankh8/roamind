@@ -427,7 +427,7 @@ interface InsuranceInfo {
 
 export default function Emergency() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/emergency')
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -562,7 +562,7 @@ export default function Emergency() {
   }
 
   const nav = (_path: string) => {}
-  const handleLogout = async () => { const { signOut } = await import('firebase/auth'); await signOut(auth); router.push('/landing') }
+  const handleLogout = async () => { await doSignOut(); router.push('/landing') }
 
   const showToastMsg = (msg: string) => {
     setToastMessage(msg)

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
@@ -37,7 +37,7 @@ const getAllRestaurantsData = () => {
 
 export default function Restaurants() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/restaurants')
   
@@ -55,6 +55,7 @@ export default function Restaurants() {
   // Feature 2: Quick Compare Mode
   const [compareList, setCompareList] = useState<Restaurant[]>([])
   const [showCompareModal, setShowCompareModal] = useState(false)
+  const restaurantsRef = useRef<HTMLDivElement>(null)
 
   // Feature 3: Smart Search Suggestions
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
@@ -305,7 +306,7 @@ export default function Restaurants() {
   }, [selectedCity, cityRestaurants, allRestaurants, searchQuery, dietFilter, budgetFilter, cuisineFilter, cuisineTagFilter, showHiddenGemsOnly, sortMode])
 
   const nav = (_path: string) => {}
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => doSignOut().then(() => router.push('/landing'))
 
   if (loading) return (
     <div style={{ position: 'fixed', inset: 0, background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
@@ -477,8 +478,8 @@ export default function Restaurants() {
                     'linear-gradient(135deg, #ffecd220, #fcb69f20)',
                   ]
                   const grad = gradients[idx % gradients.length]
-                  return (
-                    <button key={spot.city.id} onClick={() => setSelectedCity(spot.city.id)}
+return (
+                  <button key={spot.city.id} onClick={() => { setSelectedCity(spot.city.id); setTimeout(() => restaurantsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100) }}
                       style={{ minWidth: 160, background: grad, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 14, textAlign: 'left', cursor: 'pointer', transition: 'all 0.25s', flexShrink: 0 }}
                       onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)' }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
@@ -507,7 +508,7 @@ export default function Restaurants() {
                 return (
                   <button
                     key={city.id}
-                    onClick={() => setSelectedCity(city.id)}
+                    onClick={() => { setSelectedCity(city.id); setTimeout(() => restaurantsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100) }}
                     style={{
                       background: selectedCity === city.id 
                         ? `linear-gradient(135deg, ${color}25, ${color}10)` 
@@ -534,7 +535,7 @@ export default function Restaurants() {
               })}
             </div>
             {selectedCity && (
-              <button onClick={() => setSelectedCity('')} style={{ marginTop: 14, background: 'rgba(99,210,255,0.08)', border: '1px solid rgba(99,210,255,0.2)', borderRadius: 10, padding: '8px 16px', color: C, fontSize: 12, cursor: 'pointer', transition: 'all 0.2s' }}
+              <button onClick={() => { setSelectedCity(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }} style={{ marginTop: 14, background: 'rgba(99,210,255,0.08)', border: '1px solid rgba(99,210,255,0.2)', borderRadius: 10, padding: '8px 16px', color: C, fontSize: 12, cursor: 'pointer', transition: 'all 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,210,255,0.15)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(99,210,255,0.08)'}
               >← Back to All Cities</button>
@@ -573,7 +574,7 @@ export default function Restaurants() {
           )}
 
           {/* RESULTS HEADER */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(99,210,255,0.08)', borderRadius: 12, padding: '12px 16px' }}>
+          <div ref={restaurantsRef} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(99,210,255,0.08)', borderRadius: 12, padding: '12px 16px' }}>
             <div>
               <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
                 {selectedCity ? `${selectedCityData?.emoji || '📍'} ${filteredRestaurants.length} Restaurants in ${selectedCityData?.name}` : `🍽️ ${filteredRestaurants.length} Restaurants Found`}

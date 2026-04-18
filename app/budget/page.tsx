@@ -64,7 +64,7 @@ interface SavedTrip {
 
 export default function BudgetTracker() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath] = useState('/budget')
   const [toast, setToast] = useState<{message: string, type: string} | null>(null)
@@ -134,9 +134,10 @@ export default function BudgetTracker() {
     if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t) }
   }, [toast])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     document.cookie = 'firebase-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC'
-    signOut(auth).then(() => router.push('/landing'))
+    await doSignOut()
+    router.push('/landing')
   }
 
   const currentBudget = tripBudgets[selectedTrip] || { 

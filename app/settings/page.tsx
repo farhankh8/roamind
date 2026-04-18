@@ -21,7 +21,7 @@ const _navSections = [
   { title: 'My Travel', items: [{ icon: '🏅', label: 'Travel Passport', path: '/passport' }, { icon: '❤️', label: 'Saved Trips', path: '/saved' }, { icon: '📦', label: 'Packing List', path: '/packing' }, { icon: '💰', label: 'Budget Tracker', path: '/budget' }, { icon: '💬', label: 'AI Chat', path: '/chat' }, { icon: '🧠', label: 'Travel IQ', path: '/traveliq' }, { icon: '⚙️', label: 'Settings', path: '/settings' }] },
 ]
 
-const TABS = ['Profile', 'API & Integrations', 'Appearance', 'Notifications', 'Data', 'About']
+const TABS = ['Account', 'Integrations', 'Travel Prefs', 'Notifications', 'Privacy', 'About']
 const THEMES = [
   { id: 'dark', name: 'Dark Luxury', colors: ['#000814', '#0a1628'] },
   { id: 'midnight', name: 'Midnight Black', colors: ['#000000', '#1a1a2e'] },
@@ -58,7 +58,7 @@ const KEYBOARD_SHORTCUTS = [
   { key: 'Ctrl + S', action: 'Save Changes' },
   { key: 'Ctrl + D', action: 'Go to Dashboard' },
   { key: 'Ctrl + P', action: 'Go to Packing' },
-  { key: 'Ctrl + B', action: 'Go to Budget' },
+  { key: 'Ctrl + G', action: 'Go to Budget' },
   { key: 'Esc', action: 'Close Modal' },
   { key: 'Enter', action: 'Submit Form' },
   { key: 'Tab', action: 'Next Field' },
@@ -414,20 +414,30 @@ export default function Settings() {
         )}
 
         <div style={{flex:1,display:'flex',overflow:'hidden'}}>
-          <div style={{width:200,borderRight:'1px solid rgba(99,210,255,0.07)',padding:'16px 12px',flexShrink:0}}>
-            <input type="text" placeholder="🔍 Search settings..." value={settingsSearch} onChange={(e) => setSettingsSearch(e.target.value)} style={{width:'100%',padding:'8px 12px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#fff',fontSize:12,marginBottom:12}} />
-            {TABS.map((tab, i) => (
-              <button key={tab} onClick={() => { setTabTransition(i > activeTab ? 'left' : 'right'); setActiveTab(i) }} style={{width:'100%',padding:'10px 12px',background:activeTab === i ? C + '20' : 'transparent',border:activeTab === i ? '1px solid' + C : '1px solid transparent',borderRadius:8,cursor:'pointer',textAlign:'left',color:activeTab === i ? C : 'rgba(255,255,255,0.6)',fontSize:13,fontWeight:activeTab === i ? 600 : 400,marginBottom:4}}>
-                {tab}
-              </button>
-            ))}
+          <div style={{width:220,borderRight:'1px solid rgba(99,210,255,0.07)',padding:'16px',flexShrink:0}}>
+            <div style={{marginBottom:16}}>
+              <input type="text" placeholder="Search..." value={settingsSearch} onChange={(e) => setSettingsSearch(e.target.value)} style={{width:'100%',padding:'10px 14px',background:BG3,border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,color:'#fff',fontSize:13}} />
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:4}}>
+              {TABS.map((tab, i) => {
+                const icons = ['👤', '🔗', '🎨', '🔔', '💾', 'ℹ️']
+                return (
+                  <button key={tab} onClick={() => { setTabTransition(i > activeTab ? 'left' : 'right'); setActiveTab(i) }} 
+                    style={{width:'100%',padding:'12px 14px',background:activeTab === i ? 'rgba(99,210,255,0.15)' : 'transparent',border:activeTab === i ? '1px solid rgba(99,210,255,0.3)' : '1px solid transparent',borderRadius:10,cursor:'pointer',textAlign:'left',color:activeTab === i ? '#63d2ff' : 'rgba(255,255,255,0.6)',fontSize:13,fontWeight:activeTab === i ? 600 : 400,display:'flex',alignItems:'center',gap:10,transition:'all 0.2s'}}>
+                    <span style={{fontSize:16}}>{icons[i]}</span>
+                    {tab}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           <div key={activeTab} style={{flex:1,overflow:'auto',padding:'24px',animation:'fadeIn 0.3s ease'}}>
-            {/* PROFILE TAB */}
+            {/* ACCOUNT TAB */}
             {activeTab === 0 && (
-              <div style={{maxWidth:500}}>
-                <h3 style={{fontSize:16,fontWeight:600,marginBottom:20}}>👤 Profile</h3>
+              <div style={{maxWidth:600}}>
+                <h2 style={{fontSize:22,fontWeight:700,marginBottom:8}}>👤 Account</h2>
+                <p style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:24}}>Manage your profile and personal information</p>
                 
                 {/* PROFILE CARD PREVIEW */}
                 <div style={{background:BG2,borderRadius:16,padding:20,marginBottom:24,border:'1px solid rgba(99,210,255,0.1)'}}>
@@ -527,61 +537,79 @@ export default function Settings() {
 
             {/* API TAB */}
             {activeTab === 1 && (
-              <div style={{maxWidth:500}}>
-                <h3 style={{fontSize:16,fontWeight:600,marginBottom:20}}>🔑 API & Integrations</h3>
+              <div style={{maxWidth:600}}>
+                <h2 style={{fontSize:20,fontWeight:700,marginBottom:8}}>Integrations</h2>
+                <p style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:24}}>Connect external services to enhance your travel experience</p>
                 
-                <div style={{marginBottom:20}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                    <div style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>Anthropic API Key</div>
+                {/* Anthropic Claude */}
+                <div style={{marginBottom:24,background:BG2,padding:20,borderRadius:16,border:'1px solid rgba(99,210,255,0.1)'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                    <div style={{display:'flex',alignItems:'center',gap:12}}>
+                      <div style={{width:40,height:40,borderRadius:10,background:'linear-gradient(135deg, #ff6b6b, #feca57)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>🤖</div>
+                      <div>
+                        <div style={{fontSize:14,fontWeight:600}}>Claude AI</div>
+                        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>Powering chat, restaurants & itinerary</div>
+                      </div>
+                    </div>
                     {getApiStatusBadge()}
                   </div>
-                  <div style={{display:'flex',gap:8}}>
-                    <input type="password" value={settings.apiKeys.anthropic} onChange={(e) => handleSettingChange('apiKeys', {...settings.apiKeys, anthropic: e.target.value})} placeholder="sk-ant-..." style={{flex:1,padding:'12px',background:BG3,border:'1px solid rgba(99,210,255,0.2)',borderRadius:10,color:'#fff',fontSize:14}} />
+                  <input type="password" value={settings.apiKeys.anthropic} onChange={(e) => handleSettingChange('apiKeys', {...settings.apiKeys, anthropic: e.target.value})} placeholder="sk-ant-api03-..." style={{width:'100%',padding:'12px 14px',background:BG3,border:'1px solid rgba(99,210,255,0.2)',borderRadius:10,color:'#fff',fontSize:13,marginBottom:12}} />
+                  <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                    <button onClick={testApiConnection} style={{padding:'8px 16px',background:C,border:'none',borderRadius:8,color:BG,fontWeight:600,cursor:'pointer',fontSize:12}}>Verify</button>
+                    {settings.apiKeys.anthropic && <span style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{getMaskedApiKey()}</span>}
                   </div>
-                  {settings.apiKeys.anthropic && <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:4}}>Preview: {getMaskedApiKey()}</div>}
-                  <button onClick={testApiConnection} style={{marginTop:8,padding:'8px 16px',background:C,border:'none',borderRadius:8,color:BG,fontWeight:600,cursor:'pointer'}}>Test Connection</button>
                 </div>
 
                 {/* MODEL SELECTOR */}
-                <div style={{marginBottom:20}}>
-                  <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginBottom:8}}>AI Model</div>
-                  <select value={settings.aiModel} onChange={(e) => handleSettingChange('aiModel', e.target.value)} style={{width:'100%',padding:'12px',background:BG3,border:'1px solid rgba(99,210,255,0.2)',borderRadius:10,color:'#fff',fontSize:14}}>
+                <div style={{marginBottom:24,background:BG2,padding:20,borderRadius:16,border:'1px solid rgba(99,210,255,0.1)'}}>
+                  <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>AI Model</div>
+                  <select value={settings.aiModel} onChange={(e) => handleSettingChange('aiModel', e.target.value)} style={{width:'100%',padding:'12px 14px',background:BG3,border:'1px solid rgba(99,210,255,0.2)',borderRadius:10,color:'#fff',fontSize:13}}>
                     <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (Recommended)</option>
                     <option value="claude-haiku-4-5-20251001">Claude Haiku (Faster, Cheaper)</option>
                   </select>
                 </div>
 
-                {/* API HELP */}
-                <div style={{marginBottom:20,padding:16,background:BG3,borderRadius:12,border:'1px solid rgba(99,210,255,0.1)'}}>
-                  <div style={{fontSize:12,fontWeight:600,marginBottom:8}}>Where to get API key?</div>
-                  <ol style={{fontSize:11,color:'rgba(255,255,255,0.6)',paddingLeft:16,lineHeight:1.8}}>
-                    <li>Go to <a href="https://console.anthropic.com" target="_blank" style={{color:C}}>anthropic.com</a></li>
-                    <li>Sign up / Login to your account</li>
-                    <li>Add billing info → Create API key</li>
+                {/* Google Maps */}
+                <div style={{marginBottom:24,background:BG2,padding:20,borderRadius:16,border:'1px solid rgba(255,255,255,0.05)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+                    <div style={{width:40,height:40,borderRadius:10,background:'linear-gradient(135deg, #4285f4, #34a853)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>🗺️</div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:600}}>Google Maps</div>
+                      <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>Maps & location features</div>
+                    </div>
+                  </div>
+                  <input type="password" value={settings.apiKeys.google} onChange={(e) => handleSettingChange('apiKeys', {...settings.apiKeys, google: e.target.value})} placeholder="Enter your Google API key" style={{width:'100%',padding:'12px 14px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,color:'#fff',fontSize:13}} />
+                </div>
+
+                {/* Unsplash */}
+                <div style={{marginBottom:24,background:BG2,padding:20,borderRadius:16,border:'1px solid rgba(255,255,255,0.05)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+                    <div style={{width:40,height:40,borderRadius:10,background:'linear-gradient(135deg, #000, #333)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>📷</div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:600}}>Unsplash</div>
+                      <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>Travel photos</div>
+                    </div>
+                  </div>
+                  <input type="password" value={settings.apiKeys.unsplash} onChange={(e) => handleSettingChange('apiKeys', {...settings.apiKeys, unsplash: e.target.value})} placeholder="Enter your Unsplash API key" style={{width:'100%',padding:'12px 14px',background:BG3,border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,color:'#fff',fontSize:13}} />
+                </div>
+
+                {/* Help */}
+                <div style={{padding:16,background:'rgba(99,210,255,0.05)',borderRadius:12,border:'1px solid rgba(99,210,255,0.1)'}}>
+                  <div style={{fontSize:12,fontWeight:600,marginBottom:8,color:C}}>How to get API keys?</div>
+                  <ol style={{fontSize:11,color:'rgba(255,255,255,0.5)',paddingLeft:16,lineHeight:1.8}}>
+                    <li>Visit <a href="https://console.anthropic.com" target="_blank" style={{color:C}}>anthropic.com</a> for Claude</li>
+                    <li>Get Google key from <a href="https://console.cloud.google.com" target="_blank" style={{color:C}}>Google Cloud Console</a></li>
+                    <li>Unsplash at <a href="https://unsplash.com/developers" target="_blank" style={{color:C}}>unsplash.com/developers</a></li>
                   </ol>
-                </div>
-
-                <div style={{marginBottom:20}}>
-                  <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginBottom:8}}>Google Maps API Key (Optional)</div>
-                  <input type="password" value={settings.apiKeys.google} onChange={(e) => handleSettingChange('apiKeys', {...settings.apiKeys, google: e.target.value})} placeholder="Optional" style={{width:'100%',padding:'12px',background:BG3,border:'1px solid rgba(99,210,255,0.2)',borderRadius:10,color:'#fff',fontSize:14}} />
-                </div>
-
-                <div style={{marginBottom:20}}>
-                  <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginBottom:8}}>Unsplash API Key (Optional)</div>
-                  <input type="password" value={settings.apiKeys.unsplash} onChange={(e) => handleSettingChange('apiKeys', {...settings.apiKeys, unsplash: e.target.value})} placeholder="Optional" style={{width:'100%',padding:'12px',background:BG3,border:'1px solid rgba(99,210,255,0.2)',borderRadius:10,color:'#fff',fontSize:14}} />
-                </div>
-
-                <div style={{marginBottom:20}}>
-                  <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginBottom:8}}>Webhook URL (Optional)</div>
-                  <input type="url" value={settings.apiKeys.webhook || ''} onChange={(e) => handleSettingChange('apiKeys', {...settings.apiKeys, webhook: e.target.value})} placeholder="https://..." style={{width:'100%',padding:'12px',background:BG3,border:'1px solid rgba(99,210,255,0.2)',borderRadius:10,color:'#fff',fontSize:14}} />
                 </div>
               </div>
             )}
 
-            {/* APPEARANCE TAB */}
+            {/* TRAVEL PREFS TAB */}
             {activeTab === 2 && (
-              <div style={{maxWidth:500}}>
-                <h3 style={{fontSize:16,fontWeight:600,marginBottom:20}}>🎨 Appearance</h3>
+              <div style={{maxWidth:600}}>
+                <h2 style={{fontSize:22,fontWeight:700,marginBottom:8}}>🧳 Travel Preferences</h2>
+                <p style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:24}}>Customize your travel experience</p>
                 
                 <div style={{marginBottom:20}}>
                   <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginBottom:12}}>Theme</div>
@@ -657,7 +685,8 @@ export default function Settings() {
             {/* NOTIFICATIONS TAB */}
             {activeTab === 3 && (
               <div style={{maxWidth:500}}>
-                <h3 style={{fontSize:16,fontWeight:600,marginBottom:20}}>🔔 Notifications & Alerts</h3>
+                <h2 style={{fontSize:22,fontWeight:700,marginBottom:8}}>🔔 Notifications</h2>
+                <p style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:24}}>Control how you receive updates and alerts</p>
                 
                 <div style={{marginBottom:20}}>
                   <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginBottom:8}}>Budget Alert Threshold</div>
@@ -703,8 +732,9 @@ export default function Settings() {
 
             {/* DATA TAB */}
             {activeTab === 4 && (
-              <div style={{maxWidth:500}}>
-                <h3 style={{fontSize:16,fontWeight:600,marginBottom:20}}>💾 Data Management</h3>
+              <div style={{maxWidth:600}}>
+                <h2 style={{fontSize:22,fontWeight:700,marginBottom:8}}>🔐 Privacy & Security</h2>
+                <p style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:24}}>Manage your data and account security</p>
                 
                 <div style={{marginBottom:20,padding:16,background:BG2,borderRadius:12}}>
                   <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginBottom:8}}>Storage Used</div>
@@ -769,8 +799,9 @@ export default function Settings() {
 
             {/* ABOUT TAB */}
             {activeTab === 5 && (
-              <div style={{maxWidth:500}}>
-                <h3 style={{fontSize:16,fontWeight:600,marginBottom:20}}>ℹ️ About</h3>
+              <div style={{maxWidth:600}}>
+                <h2 style={{fontSize:22,fontWeight:700,marginBottom:8}}>ℹ️ About</h2>
+                <p style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginBottom:24}}>App information and updates</p>
                 
                 {/* WHAT'S NEW */}
                 <div style={{marginBottom:20,padding:16,background:`linear-gradient(135deg, ${PURPLE}20, ${C}10)`,border:`1px solid ${PURPLE}`,borderRadius:14}}>

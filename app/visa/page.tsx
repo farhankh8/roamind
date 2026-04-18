@@ -290,7 +290,7 @@ function getVisaTypeIcon(type: VisaType) {
 
 export default function Visa() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/visa')
   const [selectedFrom, setSelectedFrom] = useState<string>('')
@@ -346,7 +346,7 @@ export default function Visa() {
   }, [chatMessages])
 
   const nav = (_path: string) => {}
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = async () => { await doSignOut(); router.push('/landing') }
 
   const filteredFrom = COUNTRIES.filter(c => c.name.toLowerCase().includes(searchFrom.toLowerCase()) || c.code.toLowerCase().includes(searchFrom.toLowerCase()))
   const filteredTo = COUNTRIES.filter(c => c.name.toLowerCase().includes(searchTo.toLowerCase()) || c.code.toLowerCase().includes(searchTo.toLowerCase()))

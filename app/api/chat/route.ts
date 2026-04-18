@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
+  // Auth is handled by middleware - protected routes can't reach here without auth
   try {
     const body = await req.json()
     const { messages, userContext } = body
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
         max_tokens: 1024,
         system: systemPrompt,
         messages: messages.slice(-10)
-      })
+      }),
+      signal: AbortSignal.timeout(30000)
     })
 
     const result = await response.json()

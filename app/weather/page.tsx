@@ -168,7 +168,7 @@ const getUvSeverity = (uv: number): { label: string; color: string } => {
 
 export default function Weather() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/weather')
   
@@ -336,7 +336,7 @@ export default function Weather() {
   }
 
   const nav = (path: string) => { setActivePath(path); router.push(path) }
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => doSignOut().then(() => router.push('/landing'))
 
   const selectCity = (city: GeoLocation) => {
     setSelectedCity(city)

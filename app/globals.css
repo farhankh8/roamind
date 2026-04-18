@@ -32,7 +32,10 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-button, a, input, textarea, select { focus-visible: outline: 2px solid var(--blue); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
 html { scroll-behavior: smooth; }
 body {
   font-family: var(--font-sans);
@@ -228,4 +231,23 @@ h1, h2, h3, h4 { font-family: var(--font-serif); line-height: 1.1; }
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: var(--blue);
+  color: #000;
+  border-radius: 0 0 8px 0;
+  font-weight: 500;
+  font-size: 14px;
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 0;
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }

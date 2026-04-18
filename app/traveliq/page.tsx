@@ -62,9 +62,15 @@ const ACHIEVEMENTS = [
 
 export default function TravelIQ() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut: doSignOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/traveliq')
+  const defaultQuestions = [
+  { question: 'What is the capital of France?', options: ['London', 'Paris', 'Berlin', 'Madrid'], answer: 1, category: 'Geography', difficulty: 'easy', isAi: false },
+  { question: 'Which planet is closest to the Sun?', options: ['Venus', 'Mercury', 'Mars', 'Jupiter'], answer: 1, category: 'Science', difficulty: 'easy', isAi: false },
+  { question: 'What is the largest ocean?', options: ['Atlantic', 'Indian', 'Pacific', 'Arctic'], answer: 2, category: 'Geography', difficulty: 'easy', isAi: false },
+]
+
   const [quizState, setQuizState] = useState<QuizState | null>(() => {
     try {
       const data = localStorage.getItem('roamind_traveliq')
@@ -80,7 +86,7 @@ export default function TravelIQ() {
         }
       }
     } catch {}
-    return null
+    return { streak: 0, highScore: 0, lastPlayed: '', questions: defaultQuestions, currentIndex: 0, score: 0, answered: false, selectedAnswer: null, timeLeft: 20, completed: false }
   })
   const [categoryFilter, setCategoryFilter] = useState<string>('')
   const [difficultyFilter, setDifficultyFilter] = useState<string>('')
@@ -156,7 +162,7 @@ export default function TravelIQ() {
     }
   }, [quizState, quizState?.timeLeft, quizState?.answered, quizState?.completed])
 
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => doSignOut().then(() => router.push('/landing'))
   const nav = (path: string) => { setActivePath(path); router.push(path) }
   const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
   const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()
@@ -244,6 +250,13 @@ export default function TravelIQ() {
     } finally {
       setAiLoading(false)
     }
+  }
+
+  const exitQuiz = () => {
+    if (!quizState) return
+    setQuizState(null)
+    localStorage.removeItem('roamind_traveliq')
+    setToast({message: 'Quiz exited', type: 'info'})
   }
 
   const nextQuestion = () => {
@@ -433,6 +446,7 @@ export default function TravelIQ() {
           ) : (
             <div style={{maxWidth:600,margin:'0 auto'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+                <button onClick={exitQuiz} style={{padding:'8px 14px',background:'rgba(255,107,107,0.15)',border:'1px solid rgba(255,107,107,0.4)',borderRadius:8,color:'#ff6b6b',fontSize:12,cursor:'pointer',fontWeight:500}}>✕ Exit</button>
                 <div style={{fontSize:14,color:'rgba(255,255,255,0.6)'}}>Question {quizState.currentIndex + 1} of {quizState.questions.length}</div>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   <div style={{width:40,height:40,borderRadius:'50%',background:quizState.timeLeft <= 5 ? R : BG3,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:700,color:quizState.timeLeft <= 5 ? '#fff' : C}}>
