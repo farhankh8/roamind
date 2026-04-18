@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "trips",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASC"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESC"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "budgets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASC"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESC"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

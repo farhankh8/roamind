@@ -1,9 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-import type { User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 interface SavedTrip {
@@ -157,8 +155,7 @@ const PACKERS = ['Solo', 'Couple', 'Family', 'Friends', 'Group']
 
 export default function PackingPage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/packing')
   
@@ -200,12 +197,10 @@ export default function PackingPage() {
   }
 
   useEffect(() => {
-    let mounted = true
-    const unsub = onAuthStateChanged(auth, u => { 
-      if (mounted) { setUser(u); setLoading(false) } 
-    })
-    return () => { mounted = false; unsub() }
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     try {

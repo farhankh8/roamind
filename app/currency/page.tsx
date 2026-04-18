@@ -1,10 +1,8 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import type { User } from 'firebase/auth'
 import type { Chart } from 'chart.js'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -132,12 +130,11 @@ interface ChatMessage {
 
 export default function Currency() {
   const router = useRouter()
+  const { user, loading, signOut } = useAuth()
   const chartRef = useRef<HTMLCanvasElement>(null)
   const chartInstance = useRef<Chart | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath] = useState('/currency')
   const [amount, setAmount] = useState('100')
@@ -181,12 +178,10 @@ export default function Currency() {
   const [chatLoading, setChatLoading] = useState(false)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     if (navigator.geolocation) {

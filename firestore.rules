@@ -1,0 +1,105 @@
+rules_version = '2'
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null
+    }
+    
+    // Helper function to check if user owns the data
+    function isOwner(userId) {
+      return request.auth.uid == userId
+    }
+    
+    // =================================================================
+    // USER PROFILES - Each user can only access their own profile
+    // =================================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId)
+      allow write: if isAuthenticated() && isOwner(userId)
+      allow create: if isAuthenticated() && isOwner(userId)
+      allow delete: if isAuthenticated() && isOwner(userId)
+    }
+    
+    // =================================================================
+    // TRIPS - Users can only access their own trips
+    // =================================================================
+    match /trips/{tripId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId
+    }
+    
+    // =================================================================
+    // BUDGETS - Users can only access their own budgets
+    // =================================================================
+    match /budgets/{budgetId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId
+    }
+    
+    // =================================================================
+    // PASSPORTS - Users can only access their own passport data
+    // =================================================================
+    match /passports/{passportId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId
+    }
+    
+    // =================================================================
+    // SETTINGS - Users can only access their own settings
+    // =================================================================
+    match /settings/{settingId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId
+    }
+    
+    // =================================================================
+    // CHAT HISTORIES - Users can only access their own chat
+    // =================================================================
+    match /chatHistories/{chatId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId
+    }
+    
+    // =================================================================
+    // TRAVEL IQ - Users can only access their own Travel IQ data
+    // =================================================================
+    match /travelIQ/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId)
+      allow write: if isAuthenticated() && isOwner(userId)
+      allow create: if isAuthenticated() && isOwner(userId)
+      allow delete: if isAuthenticated() && isOwner(userId)
+    }
+    
+    // =================================================================
+    // SAVED ITEMS - Users can only access their own saved items
+    // =================================================================
+    match /saved/{savedId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId
+    }
+    
+    // =================================================================
+    // PACKING LISTS - Users can only access their own lists
+    // =================================================================
+    match /packingLists/{listId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId
+    }
+  }
+}

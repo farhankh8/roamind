@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -63,8 +62,7 @@ const ACHIEVEMENTS = [
 
 export default function TravelIQ() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(false)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/traveliq')
   const [quizState, setQuizState] = useState<QuizState | null>(() => {
@@ -129,9 +127,10 @@ export default function TravelIQ() {
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u) })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     if (quizState?.timeLeft && quizState.timeLeft > 0 && !quizState.answered && !quizState.completed) {

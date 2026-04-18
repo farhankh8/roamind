@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -169,8 +168,7 @@ const getUvSeverity = (uv: number): { label: string; color: string } => {
 
 export default function Weather() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/weather')
   
@@ -301,12 +299,10 @@ export default function Weather() {
   }, [compareCities])
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     if (selectedCity) {

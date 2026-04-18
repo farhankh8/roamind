@@ -2,8 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -407,8 +406,7 @@ function _WorldMapSVG({ visited, onCountryClick }: { visited: string[], onCountr
 
 export default function TravelPassport() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/passport')
   const [countries, setCountries] = useState<Record<string, CountryVisit>>({})
@@ -432,11 +430,10 @@ export default function TravelPassport() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false) })
-      return () => unsubscribe()
-    } catch { setLoading(false) }
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     try {

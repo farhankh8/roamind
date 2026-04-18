@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -291,8 +290,7 @@ function getVisaTypeIcon(type: VisaType) {
 
 export default function Visa() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading] = useState(false)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/visa')
   const [selectedFrom, setSelectedFrom] = useState<string>('')
@@ -338,11 +336,10 @@ export default function Visa() {
   })
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })

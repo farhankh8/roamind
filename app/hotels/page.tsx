@@ -1,9 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-import type { User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -112,8 +110,7 @@ const TIPS_HOTELS = [
 
 export default function Hotels() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/hotels')
   
@@ -261,15 +258,13 @@ export default function Hotels() {
   const budgetResult = calculateBudget()
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   const nav = (_path: string) => {}
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => signOut().then(() => router.push('/landing'))
 
   if (loading) return (
     <div style={{ position: 'fixed', inset: 0, background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>

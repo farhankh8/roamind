@@ -1,9 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import type { User } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -155,8 +153,7 @@ function generateFlights(fromId: string, toId: string): Flight[] {
 
 export default function Flights() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath] = useState('/flights')
 
@@ -204,12 +201,10 @@ export default function Flights() {
   ]
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

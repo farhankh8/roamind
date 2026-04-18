@@ -1,9 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import type { User } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -429,8 +427,7 @@ interface InsuranceInfo {
 
 export default function Emergency() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/emergency')
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -458,12 +455,10 @@ export default function Emergency() {
   const [showAllCountries, setShowAllCountries] = useState(false)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     loadStoredData()

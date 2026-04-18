@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#00d4ff'
@@ -1580,8 +1579,7 @@ function getScoreColor(score: number): string {
 
 export default function Transport() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/transport')
   
@@ -1602,12 +1600,10 @@ export default function Transport() {
   const [animatedStats, setAnimatedStats] = useState({ cities: 0, regions: 0, countries: 0, avgScore: 0 })
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

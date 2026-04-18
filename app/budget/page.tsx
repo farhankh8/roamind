@@ -1,9 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import type { User } from 'firebase/auth'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -66,8 +64,7 @@ interface SavedTrip {
 
 export default function BudgetTracker() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath] = useState('/budget')
   const [toast, setToast] = useState<{message: string, type: string} | null>(null)
@@ -100,11 +97,10 @@ export default function BudgetTracker() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false) })
-      return () => unsubscribe()
-    } catch { setLoading(false) }
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     try {
@@ -138,7 +134,10 @@ export default function BudgetTracker() {
     if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t) }
   }, [toast])
 
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => {
+    document.cookie = 'firebase-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC'
+    signOut(auth).then(() => router.push('/landing'))
+  }
 
   const currentBudget = tripBudgets[selectedTrip] || { 
     tripId: selectedTrip, tripName: trips.find(t => t.id === selectedTrip)?.name || 'Trip', 

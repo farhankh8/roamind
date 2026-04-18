@@ -4,6 +4,7 @@ import './guides/guides.css'
 import { validateEnv } from '@/lib/env'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Toaster } from 'react-hot-toast'
+import { AuthProvider } from '@/context/AuthContext'
 
 validateEnv()
 
@@ -85,9 +86,17 @@ export default function RootLayout({
         />
         <meta name="theme-color" content="#000814" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="manifest" href="/manifest.json" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify({ "@context": "https://schema.org", "@type": "TravelAgency", name: "Roamind", description: "AI-powered travel planning platform", url: "https://roamind.app", potentialAction: { "@type": "SearchAction", target: "https://roamind.app/search?q={search_term_string}", "query-input": "required name=search_term_string" } })}} />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID" />
+        <script dangerouslySetInnerHTML={{__html: `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'GA_MEASUREMENT_ID');`}} />
       </head>
       <body suppressHydrationWarning={true}>
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <ErrorBoundary>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ErrorBoundary>
         <Toaster position="top-right" />
       </body>
     </html>

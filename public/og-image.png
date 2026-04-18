@@ -1,0 +1,17 @@
+Roamind OG Image - 1200x630px
+================================
+
+This is a placeholder for the OG image.
+
+To create a real one:
+1. Go to https://og-image.vercel.app
+2. Select dark theme with cyan accents
+3. Add text: "Roamind - Your AI Travel Companion"
+4. Download as og-image.png
+5. Place in public/ folder
+
+Alternatively use Canva free tier:
+- Create 1200x630px canvas
+- Use #020810 background
+- Add Roamind logo/name
+- Export as PNG

@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-import type { User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -97,9 +95,7 @@ const allCountries = ['All', ...new Set(guides.map(g => g.country))]
 
 export default function GuidesPage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/guides')
   
@@ -123,16 +119,10 @@ export default function GuidesPage() {
   const [reportSubmitted, setReportSubmitted] = useState(false)
 
   useEffect(() => {
-    let mounted = true
-    try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { 
-        if (mounted) { 
-          queueMicrotask(() => { setUser(u); setLoading(false) }) 
-        } 
-      })
-      return () => { mounted = false; unsubscribe() }
-    } catch { if (mounted) queueMicrotask(() => setLoading(false)) }
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     let mounted = true

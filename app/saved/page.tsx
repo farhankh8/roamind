@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 
 const C = '#63d2ff', G = '#ffb74d', BG = '#020810', GR = '#4cff91'
 
@@ -30,13 +29,13 @@ interface SavedTrip {
 
 export default function SavedTripsPage() {
   const router = useRouter()
+  const { user, loading } = useAuth()
   const [trips, setTrips] = useState<SavedTrip[]>(() => {
     try {
       const raw = localStorage.getItem('roamind_saved_trips')
       return raw ? JSON.parse(raw) : []
     } catch { return [] }
   })
-  const [loading] = useState(false)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [filterBudget, setFilterBudget] = useState<'all' | 'low' | 'mid' | 'high'>('all')
@@ -45,11 +44,10 @@ export default function SavedTripsPage() {
   const [toast, setToast] = useState('')
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => {
-      if (!u) router.push('/auth/login')
-    })
-    return () => unsub()
-  }, [router])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   const showToast = (msg: string) => {
     setToast(msg)

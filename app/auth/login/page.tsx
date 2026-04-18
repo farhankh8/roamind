@@ -64,7 +64,12 @@ export default function LoginPage() {
     }
     setFormErrors({})
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      
+      // Set session cookie using document.cookie (client-side)
+      // Middleware will detect this cookie
+      document.cookie = 'firebase-session=authenticated; path=/; max-age=' + (60*60*24*7) + '; SameSite=Lax'
+      
       router.push('/dashboard')
     } catch (err: unknown) {
       const firebaseError = err as { code?: string }
@@ -88,6 +93,8 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
+      // Set session cookie for middleware
+      document.cookie = 'firebase-session=authenticated; path=/; max-age=' + (60*60*24*7) + '; SameSite=Lax'
       router.push('/dashboard')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'

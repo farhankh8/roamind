@@ -30,6 +30,9 @@
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+button, a, input, textarea, select { focus-visible: outline: 2px solid var(--blue); outline-offset: 2px; }
 html { scroll-behavior: smooth; }
 body {
   font-family: var(--font-sans);

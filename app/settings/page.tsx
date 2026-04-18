@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -67,8 +66,7 @@ const KEYBOARD_SHORTCUTS = [
 
 export default function Settings() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading] = useState(false)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/settings')
   const [activeTab, setActiveTab] = useState(0)
@@ -139,9 +137,10 @@ export default function Settings() {
   })
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u) })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   const calculateStorage = () => {
     if (typeof window === 'undefined') return 0
@@ -187,7 +186,7 @@ export default function Settings() {
     }
   }, [toast])
 
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = () => signOut().then(() => router.push('/landing'))
   const nav = (_path: string) => {}
   const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Traveler'
   const avatar = (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'T').toUpperCase()

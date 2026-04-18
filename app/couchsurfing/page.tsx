@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -330,8 +329,7 @@ const REST_FEATURES = [
 
 export default function CouchSurfing() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email: string | null; displayName: string | null } | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/couchsurfing')
   const [searchQuery, setSearchQuery] = useState('')
@@ -388,12 +386,10 @@ export default function CouchSurfing() {
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   useEffect(() => {
     filterHosts()

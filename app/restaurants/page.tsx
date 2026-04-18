@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 import { ALL_CITIES, RESTAURANTS_BY_CITY, FOOD_TIPS, BUDGET_LEVELS, DIETARY_OPTIONS, getMichelinRestaurants } from './data'
 import { Restaurant } from './types'
@@ -38,8 +37,7 @@ const getAllRestaurantsData = () => {
 
 export default function Restaurants() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/restaurants')
   
@@ -237,12 +235,10 @@ export default function Restaurants() {
   }, [])
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading])
 
   const allRestaurants = useMemo(() => {
     const filteredCities = viewMode === 'india' 

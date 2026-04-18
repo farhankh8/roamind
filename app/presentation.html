@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roamind - AI Travel Companion</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg: #000000;
+            --accent: #FF6B35;
+            --accent-2: #00D4AA;
+            --accent-3: #8B5CF6;
+            --accent-4: #EC4899;
+            --text: #ffffff;
+            --text-soft: #a0a0a0;
+            --glass: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.08);
+        }
+        
+        html, body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        /* ==================== EFFECTS ==================== */
+        .bg-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+        
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.4;
+        }
+        
+        .orb1 {
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, var(--accent-2), transparent 70%);
+            top: -250px;
+            left: -150px;
+            animation: orbmove1 18s ease-in-out infinite;
+        }
+        
+        .orb2 {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent), transparent 70%);
+            bottom: -200px;
+            right: -150px;
+            animation: orbmove2 22s ease-in-out infinite;
+        }
+        
+        .orb3 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--accent-3), transparent 70%);
+            top: 40%;
+            left: 30%;
+            animation: orbmove3 28s ease-in-out infinite;
+        }
+        
+        @keyframes orbmove1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(80px, 40px) scale(1.1); }
+        }
+        
+        @keyframes orbmove2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-60px, -50px) scale(1.15); }
+        }
+        
+        @keyframes orbmove3 {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-30%, -60%) scale(1.2); }
+        }
+        
+        .grid-lines {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: perspective(600px) rotateX(65deg);
+            transform-origin: center top;
+            animation: gridscroll 40s linear infinite;
+        }
+        
+        @keyframes gridscroll {
+            from { background-position: 0 0; }
+            to { background-position: 0 50px; }
+        }
+        
+        .stars {
+            position: absolute;
+            inset: 0;
+        }
+        
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: starlight 8s ease-in-out infinite;
+        }
+        
+        .star:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; }
+        .star:nth-child(2) { left: 20%; top: 50%; animation-delay: 1s; }
+        .star:nth-child(3) { left: 30%; top: 30%; animation-delay: 2s; }
+        .star:nth-child(4) { left: 40%; top: 70%; animation-delay: 0.5s; }
+        .star:nth-child(5) { left: 50%; top: 40%; animation-delay: 1.5s; }
+        .star:nth-child(6) { left: 60%; top: 80%; animation-delay: 2.5s; }
+        .star:nth-child(7) { left: 70%; top: 25%; animation-delay: 0.8s; }
+        .star:nth-child(8) { left: 80%; top: 60%; animation-delay: 1.8s; }
+        .star:nth-child(9) { left: 90%; top: 35%; animation-delay: 3s; }
+        
+        @keyframes starlight {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.5); }
+        }
+        
+        /* ==================== SLIDES ==================== */
+        .slider {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .page {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px 70px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(40px) scale(0.94);
+            transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        .page.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+        
+        .page.exit {
+            opacity: 0;
+            transform: translateY(-40px) scale(1.02);
+        }
+        
+        /* ==================== TYPOGRAPHY ==================== */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 18px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--accent-2);
+            margin-bottom: 30px;
+        }
+        
+        .title-xl {
+            font-size: 6rem;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 0%, #bbb 50%, var(--accent-2) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .title-lg {
+            font-size: 3.4rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        
+        .title-md {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .sub-text {
+            font-size: 1.3rem;
+            color: var(--text-soft);
+            margin-bottom: 40px;
+        }
+        
+        .label-sm {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent-2);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 14px;
+        }
+        
+        /* ==================== GLOBE ==================== */
+        .world {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin-bottom: 36px;
+            perspective: 1000px;
+            animation: worldfloat 7s ease-in-out infinite;
+        }
+        
+        @keyframes worldfloat {
+            0%, 100% { transform: translateY(0) rotateX(-10deg); }
+            50% { transform: translateY(-20px) rotateX(-3deg); }
+        }
+        
+        .world-ball {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(0,212,170,0.4) 0%, transparent 45%),
+                radial-gradient(circle at 70% 65%, rgba(255,107,53,0.3) 0%, transparent 35%),
+                radial-gradient(circle at 55% 55%, rgba(139,92,246,0.2) 0%, transparent 50%),
+                linear-gradient(145deg, #0a0a0a 0%, #141414 100%);
+            box-shadow: 
+                inset -30px -30px 60px rgba(0,0,0,0.7),
+                inset 15px 15px 40px rgba(255,255,255,0.05),
+                0 0 100px rgba(0,212,170,0.15);
+            position: relative;
+        }
+        
+        .world-line {
+            position: absolute;
+            width: 200%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0,212,170,0.7), transparent);
+            top: 50%;
+            left: -50%;
+            animation: scanline 4s linear infinite;
+        }
+        
+        @keyframes scanline {
+            0% { transform: translateY(-100px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(100px); opacity: 0; }
+        }
+        
+        .world-ring {
+            position: absolute;
+            width: 120%;
+            height: 120%;
+            top: -10%;
+            left: -10%;
+            border: 1px solid rgba(0,212,170,0.15);
+            border-radius: 50%;
+            animation: ringrotate 30s linear infinite;
+        }
+        
+        .world-ring-2 {
+            width: 140%;
+            height: 140%;
+            top: -20%;
+            left: -20%;
+            border-color: rgba(255,107,53,0.1);
+            animation-duration: 40s;
+            animation-direction: reverse;
+        }
+        
+        @keyframes ringrotate {
+            from { transform: rotateX(60deg) rotateY(0deg); }
+            to { transform: rotateX(60deg) rotateY(360deg); }
+        }
+        
+        .world-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-2);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--accent-2);
+            animation: dotpulse 2s ease-in-out infinite;
+        }
+        
+        .dot1 { top: 30%; left: 40%; }
+        .dot2 { top: 55%; left: 65%; }
+        .dot3 { top: 70%; left: 25%; }
+        
+        @keyframes dotpulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.8; }
+        }
+        
+        /* ==================== BUTTONS ==================== */
+        .btn-group {
+            display: flex;
+            gap: 16px;
+        }
+        
+        .btn {
+            padding: 16px 34px;
+            border-radius: 16px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+            border: none;
+            font-family: 'Outfit', sans-serif;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #ff8c5a);
+            color: white;
+            box-shadow: 0 8px 32px rgba(255,107,53,0.35);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(255,107,53,0.45);
+        }
+        
+        .btn-outline {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        
+        .btn-outline:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--accent-2);
+        }
+        
+        /* ==================== CARDS ==================== */
+        .cards {
+            display: grid;
+            gap: 20px;
+            max-width: 1400px;
+        }
+        
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        
+        .card {
+            background: #0c0c0c;
+            border: 1px solid #1a1a1a;
+            border-radius: 24px;
+            padding: 32px;
+            text-align: center;
+            transition: all 0.45s cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,212,170,0.06), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .card:hover {
+            background: #111;
+            border-color: var(--accent-2);
+            transform: translateY(-10px) scale(1.03);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+        }
+        
+        .card:hover::before {
+            opacity: 1;
+        }
+        
+        .card-icon {
+            font-size: 2.6rem;
+            margin-bottom: 18px;
+        }
+        
+        .card-icon-lg {
+            font-size: 3.2rem;
+        }
+        
+        .card-text {
+            font-size: 0.9rem;
+            color: #555;
+            line-height: 1.55;
+        }
+        
+        /* ==================== DASHBOARD ==================== */
+        .dash {
+            display: flex;
+            gap: 20px;
+            max-width: 1350px;
+        }
+        
+        .dash-side {
+            width: 85px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .side-btn {
+            width: 75px;
+            height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            background: #0c0c0c;
+            border: 1px solid #1a1a1a;
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+        
+        .side-btn.active {
+            background: var(--accent-2);
+            border-color: var(--accent-2);
+            box-shadow: 0 0 30px rgba(0,212,170,0.3);
+        }
+        
+        .dash-main {
+            flex: 1;
+            background: #0c0c0c;
+            border: 1px solid #1a1a1a;
+            border-radius: 28px;
+            padding: 36px;
+        }
+        
+        .dash-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .dash-title {
+            font-size: 1.7rem;
+            font-weight: 700;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        
+        .user-detail {
+            font-weight: 600;
+        }
+        
+        .user-rank {
+            font-size: 0.8rem;
+            color: var(--accent-2);
+        }
+        
+        .user-pic {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-box {
+            background: #141414;
+            border-radius: 16px;
+            padding: 22px;
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: #444;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-2), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .trips-box {
+            background: #141414;
+            border-radius: 16px;
+            padding: 24px;
+        }
+        
+        .trips-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        
+        .trip-flex {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid #1c1c1c;
+        }
+        
+        .trip-flex:last-child {
+            border: none;
+        }
+        
+        .trip-place {
+            font-weight: 600;
+        }
+        
+        .trip-date {
+            color: var(--accent-2);
+            font-weight: 500;
+        }
+        
+        /* ==================== TOOLS ==================== */
+        .tools-row {
+            display: flex;
+            gap: 16px;
+            max-width: 1250px;
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+        
+        .tool-card {
+            min-width: 175px;
+            background: #0c0c0c;
+            border: 1px solid #1a1a1a;
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.35s;
+        }
+        
+        .tool-card:hover {
+            transform: translateY(-12px);
+            border-color: var(--accent-3);
+            background: #111;
+        }
+        
+        .tool-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+        
+        .tool-name {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+        
+        .tool-note {
+            font-size: 0.75rem;
+            color: #444;
+        }
+        
+        /* ==================== TIMELINE ==================== */
+        .roadmap {
+            position: relative;
+            max-width: 950px;
+            padding: 45px 0;
+        }
+        
+        .roadmap-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, var(--accent-2), var(--accent), var(--accent-3), var(--accent-4));
+        }
+        
+        .roadmap-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+        
+        .roadmap-item:nth-child(odd) {
+            flex-direction: row-reverse;
+        }
+        
+        .roadmap-card {
+            width: 44%;
+            background: #0c0c0c;
+            border: 1px solid #1a1a1a;
+            border-radius: 20px;
+            padding: 26px;
+            transition: all 0.35s;
+        }
+        
+        .roadmap-item:hover .roadmap-card {
+            border-color: var(--accent-2);
+            transform: scale(1.04);
+        }
+        
+        .roadmap-dot {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 14px;
+            height: 14px;
+            background: var(--accent-2);
+            border-radius: 50%;
+            box-shadow: 0 0 25px var(--accent-2);
+        }
+        
+        .quarter-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            background: var(--accent-2);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        
+        .roadmap-head {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        
+        .roadmap-desc {
+            font-size: 0.9rem;
+            color: #555;
+            line-height: 1.55;
+        }
+        
+        /* ==================== CTA ==================== */
+        .cta-center {
+            text-align: center;
+        }
+        
+        .cta-big {
+            font-size: 5rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #fff 0%, var(--accent-2) 50%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .cta-sub {
+            font-size: 1.4rem;
+            color: var(--text-soft);
+            margin-bottom: 42px;
+        }
+        
+        .btn-lg {
+            padding: 20px 48px;
+            font-size: 1.15rem;
+        }
+        
+        /* ==================== NAV ==================== */
+        .nav-pills {
+            position: fixed;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 100;
+        }
+        
+        .nav-pill {
+            width: 10px;
+            height: 40px;
+            background: #151515;
+            border: 1px solid #222;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .nav-pill.active {
+            background: linear-gradient(180deg, var(--accent-2), var(--accent));
+            border-color: var(--accent-2);
+            box-shadow: 0 0 20px var(--accent-2);
+        }
+        
+        /* ==================== PROGRESS ==================== */
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #0f0f0f;
+            z-index: 100;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-2), var(--accent), var(--accent-3));
+            transition: width 0.45s ease;
+        }
+        
+        /* ==================== CONTROLS ==================== */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 22px;
+            background: #0c0c0c;
+            border: 1px solid #1a1a1a;
+            border-radius: 50px;
+            z-index: 100;
+        }
+        
+        .control-btn {
+            padding: 9px 18px;
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 30px;
+            font-family: 'Outfit', sans-serif;
+            transition: all 0.3s;
+        }
+        
+        .control-btn:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+        
+        .control-btn.active {
+            background: var(--accent-2);
+            color: #000;
+        }
+        
+        .divider {
+            width: 1px;
+            height: 20px;
+            background: #222;
+        }
+        
+        .page-num {
+            font-size: 0.8rem;
+            color: #444;
+        }
+        
+        /* ==================== TOP ==================== */
+        .top-bar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+        
+        .top-btn {
+            padding: 9px 16px;
+            background: #0c0c0c;
+            border: 1px solid #1a1a1a;
+            border-radius: 12px;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: 'Outfit', sans-serif;
+            transition: all 0.3s;
+        }
+        
+        .top-btn:hover {
+            border-color: var(--accent-2);
+            color: #fff;
+        }
+        
+        /* ==================== SCROLL HINT ==================== */
+        .scroll-hint {
+            position: absolute;
+            bottom: 95px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            animation: scrollbounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes scrollbounce {
+            0%, 100% { opacity: 0.5; transform: translateX(-50%) translateY(0); }
+            50% { opacity: 1; transform: translateX(-50%) translateY(6px); }
+        }
+        
+        .mouse {
+            width: 24px;
+            height: 42px;
+            border: 2px solid #333;
+            border-radius: 14px;
+            position: relative;
+        }
+        
+        .wheel-dot {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 8px;
+            background: #444;
+            border-radius: 2px;
+            animation: wheelmove 2s ease-in-out infinite;
+        }
+        
+        @keyframes wheelmove {
+            0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(14px); }
+        }
+        
+        .scroll-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: #333;
+        }
+        
+        /* ==================== ANIMATION CLASSES ==================== */
+        .fade-anim {
+            opacity: 0;
+            transform: translateY(32px);
+            transition: all 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        .page.active .fade-anim {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .delay-1 { transition-delay: 0.1s; }
+        .delay-2 { transition-delay: 0.2s; }
+        .delay-3 { transition-delay: 0.3s; }
+        .delay-4 { transition-delay: 0.4s; }
+        .delay-5 { transition-delay: 0.5s; }
+        .delay-6 { transition-delay: 0.6s; }
+    </style>
+</head>
+<body>
+    <!-- BACKGROUND EFFECTS -->
+    <div class="bg-layer">
+        <div class="glow-orb orb1"></div>
+        <div class="glow-orb orb2"></div>
+        <div class="glow-orb orb3"></div>
+        <div class="grid-lines"></div>
+        <div class="stars">
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+        </div>
+    </div>
+    
+    <!-- TOP CONTROLS -->
+    <div class="top-bar">
+        <button class="top-btn" onclick="goFullscreen()">⛶ Full</button>
+        <button class="top-btn" onclick="togglePlay()" id="playBtn">⏸ Pause</button>
+    </div>
+    
+    <!-- SLIDES -->
+    <div class="slider">
+        <!-- 1. HERO -->
+        <div class="page active" id="p0">
+            <div class="world">
+                <div class="world-ring"></div>
+                <div class="world-ring world-ring-2"></div>
+                <div class="world-ball">
+                    <div class="world-line"></div>
+                    <div class="world-dot dot1"></div>
+                    <div class="world-dot dot2"></div>
+                    <div class="world-dot dot3"></div>
+                </div>
+            </div>
+            <div class="badge fade-anim">✦ AI-Powered Travel Platform</div>
+            <h1 class="title-xl fade-anim delay-1">ROAMIND</h1>
+            <p class="sub-text fade-anim delay-2">Your intelligent travel companion</p>
+            <div class="btn-group fade-anim delay-3">
+                <button class="btn btn-primary">Get Started</button>
+                <button class="btn btn-outline">▶ Watch Demo</button>
+            </div>
+            <div class="scroll-hint">
+                <div class="mouse"><div class="wheel-dot"></div></div>
+                <span class="scroll-label">Scroll to explore</span>
+            </div>
+        </div>
+        
+        <!-- 2. DASHBOARD -->
+        <div class="page" id="p1">
+            <div class="label-sm">Dashboard</div>
+            <h2 class="title-lg">Your Command Center</h2>
+            <p class="sub-text">All travel in one beautiful interface</p>
+            <div class="dash fade-anim delay-2">
+                <div class="dash-side">
+                    <div class="side-btn active">🧭</div>
+                    <div class="side-btn">🗓️</div>
+                    <div class="side-btn">✈️</div>
+                    <div class="side-btn">🏨</div>
+                    <div class="side-btn">🍽️</div>
+                    <div class="side-btn">👥</div>
+                    <div class="side-btn">💱</div>
+                    <div class="side-btn">🎒</div>
+                </div>
+                <div class="dash-main">
+                    <div class="dash-head">
+                        <h3 class="dash-title">Welcome back, Explorer!</h3>
+                        <div class="user-info">
+                            <div>
+                                <div class="user-detail">Alex Morgan</div>
+                                <div class="user-rank">★ Level 12 Traveler</div>
+                            </div>
+                            <div class="user-pic"></div>
+                        </div>
+                    </div>
+                    <div class="stats-row">
+                        <div class="stat-box">
+                            <div class="stat-label">Destinations</div>
+                            <div class="stat-value">12</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Countries</div>
+                            <div class="stat-value">8</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Days Traveled</div>
+                            <div class="stat-value">67</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Travel IQ</div>
+                            <div class="stat-value">Expert</div>
+                        </div>
+                    </div>
+                    <div class="trips-box">
+                        <h4 class="trips-title">📅 Upcoming Adventures</h4>
+                        <div class="trip-flex">
+                            <span class="trip-place">🇯🇵 Tokyo, Japan</span>
+                            <span class="trip-date">Apr 25 - May 5</span>
+                        </div>
+                        <div class="trip-flex">
+                            <span class="trip-place">🇫🇷 Paris, France</span>
+                            <span class="trip-date">Jun 10 - Jun 18</span>
+                        </div>
+                        <div class="trip-flex">
+                            <span class="trip-place">🇹🇭 Bangkok, Thailand</span>
+                            <span class="trip-date">Aug 1 - Aug 12</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 3. CORE FEATURES -->
+        <div class="page" id="p2">
+            <div class="label-sm">Core Features</div>
+            <h2 class="title-lg">Everything You Need</h2>
+            <p class="sub-text">All-in-one travel planning</p>
+            <div class="cards grid-4">
+                <div class="card fade-anim delay-1">
+                    <div class="card-icon">🤖</div>
+                    <h3 class="title-md">AI Itinerary</h3>
+                    <p class="card-text">Smart trip planning that learns your style</p>
+                </div>
+                <div class="card fade-anim delay-2">
+                    <div class="card-icon">✈️</div>
+                    <h3 class="title-md">Flights</h3>
+                    <p class="card-text">Best deals from 500+ airlines</p>
+                </div>
+                <div class="card fade-anim delay-3">
+                    <div class="card-icon">🏨</div>
+                    <h3 class="title-md">Hotels</h3>
+                    <p class="card-text">Curated stays for every budget</p>
+                </div>
+                <div class="card fade-anim delay-4">
+                    <div class="card-icon">🍽️</div>
+                    <h3 class="title-md">Restaurants</h3>
+                    <p class="card-text">Discover local dining</p>
+                </div>
+                <div class="card fade-anim delay-1">
+                    <div class="card-icon">���</div>
+                    <h3 class="title-md">Currency</h3>
+                    <p class="card-text">Live conversion, 150+ currencies</p>
+                </div>
+                <div class="card fade-anim delay-2">
+                    <div class="card-icon">🌤️</div>
+                    <h3 class="title-md">Weather</h3>
+                    <p class="card-text">14-day forecasts</p>
+                </div>
+                <div class="card fade-anim delay-3">
+                    <div class="card-icon">🛂</div>
+                    <h3 class="title-md">Visa Guide</h3>
+                    <p class="card-text">Entry requirements</p>
+                </div>
+                <div class="card fade-anim delay-4">
+                    <div class="card-icon">💰</div>
+                    <h3 class="title-md">Budget</h3>
+                    <p class="card-text">Smart expense tracking</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 4. AI FEATURES -->
+        <div class="page" id="p3">
+            <div class="label-sm">Smart AI</div>
+            <h2 class="title-lg">Powered by Intelligence</h2>
+            <p class="sub-text">Next-gen travel assistance</p>
+            <div class="cards grid-3">
+                <div class="card fade-anim delay-1">
+                    <div class="card-icon card-icon-lg">🧠</div>
+                    <h3 class="title-md">AI Travel Chat</h3>
+                    <p class="card-text">Ask anything about your trip - restaurants, visa, local tips - get instant responses</p>
+                </div>
+                <div class="card fade-anim delay-2">
+                    <div class="card-icon card-icon-lg">📝</div>
+                    <h3 class="title-md">Smart Itinerary</h3>
+                    <p class="card-text">AI creates personalized day-by-day plans based on your interests, budget & travel style</p>
+                </div>
+                <div class="card fade-anim delay-3">
+                    <div class="card-icon card-icon-lg">🎯</div>
+                    <h3 class="title-md">Travel IQ</h3>
+                    <p class="card-text">Earn points, unlock achievements & level up your travel expertise</p>
+                </div>
+                <div class="card fade-anim delay-4">
+                    <div class="card-icon card-icon-lg">💵</div>
+                    <h3 class="title-md">Budget Planner</h3>
+                    <p class="card-text">Smart expense tracking with category insights & spending analytics</p>
+                </div>
+                <div class="card fade-anim delay-5">
+                    <div class="card-icon card-icon-lg">🧳</div>
+                    <h3 class="title-md">Packing Lists</h3>
+                    <p class="card-text">AI creates smart packing lists based on destination, weather & trip duration</p>
+                </div>
+                <div class="card fade-anim delay-6">
+                    <div class="card-icon card-icon-lg">🛡️</div>
+                    <h3 class="title-md">Travel Insurance</h3>
+                    <p class="card-text">Compare plans & purchase coverage directly in the app</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 5. EXPLORE TOOLS -->
+        <div class="page" id="p4">
+            <div class="label-sm">Explore Tools</div>
+            <h2 class="title-lg">Explore More</h2>
+            <p class="sub-text">Everything a traveler needs</p>
+            <div class="tools-row">
+                <div class="tool-card fade-anim delay-1">
+                    <div class="tool-icon">🗺️</div>
+                    <div class="tool-name">Local Guides</div>
+                    <div class="tool-note">Expert locals</div>
+                </div>
+                <div class="tool-card fade-anim delay-2">
+                    <div class="tool-icon">🛋️</div>
+                    <div class="tool-name">Couch Surfing</div>
+                    <div class="tool-note">Stay with locals</div>
+                </div>
+                <div class="tool-card fade-anim delay-3">
+                    <div class="tool-icon">🛂</div>
+                    <div class="tool-name">Visa Guide</div>
+                    <div class="tool-note">Entry reqs</div>
+                </div>
+                <div class="tool-card fade-anim delay-4">
+                    <div class="tool-icon">🏛️</div>
+                    <div class="tool-name">Attractions</div>
+                    <div class="tool-note">Top sights</div>
+                </div>
+                <div class="tool-card fade-anim delay-5">
+                    <div class="tool-icon">🎫</div>
+                    <div class="tool-name">Tickets</div>
+                    <div class="tool-note">Book ahead</div>
+                </div>
+                <div class="tool-card fade-anim delay-1">
+                    <div class="tool-icon">🚗</div>
+                    <div class="tool-name">Transport</div>
+                    <div class="tool-note">Ground options</div>
+                </div>
+                <div class="tool-card fade-anim delay-2">
+                    <div class="tool-icon">🏝️</div>
+                    <div class="tool-name">Activities</div>
+                    <div class="tool-note">Tours</div>
+                </div>
+                <div class="tool-card fade-anim delay-3">
+                    <div class="tool-icon">📱</div>
+                    <div class="tool-name">eSIM</div>
+                    <div class="tool-note">Data plans</div>
+                </div>
+                <div class="tool-card fade-anim delay-4">
+                    <div class="tool-icon">⚡</div>
+                    <div class="tool-name">Power</div>
+                    <div class="tool-note">Plug adapters</div>
+                </div>
+                <div class="tool-card fade-anim delay-5">
+                    <div class="tool-icon">💳</div>
+                    <div class="tool-name">Cards</div>
+                    <div class="tool-note">Travel cards</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 6. MORE FEATURES -->
+        <div class="page" id="p5">
+            <div class="label-sm">More Features</div>
+            <h2 class="title-lg">Even More to Explore</h2>
+            <p class="sub-text">Complete travel ecosystem</p>
+            <div class="cards grid-4">
+                <div class="card fade-anim delay-1">
+                    <div class="card-icon">💬</div>
+                    <h3 class="title-md">AI Chat</h3>
+                    <p class="card-text">24/7 travel assistant</p>
+                </div>
+                <div class="card fade-anim delay-2">
+                    <div class="card-icon">🛡️</div>
+                    <h3 class="title-md">Emergency</h3>
+                    <p class="card-text">Contacts & resources</p>
+                </div>
+                <div class="card fade-anim delay-3">
+                    <div class="card-icon">🛂</div>
+                    <h3 class="title-md">Passport</h3>
+                    <p class="card-text">Digital storage</p>
+                </div>
+                <div class="card fade-anim delay-4">
+                    <div class="card-icon">❤️</div>
+                    <h3 class="title-md">Saved</h3>
+                    <p class="card-text">Your favorites</p>
+                </div>
+                <div class="card fade-anim delay-1">
+                    <div class="card-icon">⚙️</div>
+                    <h3 class="title-md">Settings</h3>
+                    <p class="card-text">Customize app</p>
+                </div>
+                <div class="card fade-anim delay-2">
+                    <div class="card-icon">📱</div>
+                    <h3 class="title-md">Couch Surf</h3>
+                    <p class="card-text">Host connections</p>
+                </div>
+                <div class="card fade-anim delay-3">
+                    <div class="card-icon">🚕</div>
+                    <h3 class="title-md">Transport</h3>
+                    <p class="card-text">Rental & transfers</p>
+                </div>
+                <div class="card fade-anim delay-4">
+                    <div class="card-icon">🌍</div>
+                    <h3 class="title-md">Travel IQ</h3>
+                    <p class="card-text">Gamification</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 7. PLATFORM -->
+        <div class="page" id="p6">
+            <div class="label-sm">Platform</div>
+            <h2 class="title-lg">Built for Travelers</h2>
+            <p class="sub-text">Cutting-edge technology</p>
+            <div class="cards grid-3">
+                <div class="card fade-anim delay-1">
+                    <div class="card-icon card-icon-lg">📱</div>
+                    <h3 class="title-md">Mobile First</h3>
+                    <p class="card-text">Beautiful iOS & Android apps with offline mode & sync</p>
+                </div>
+                <div class="card fade-anim delay-2">
+                    <div class="card-icon card-icon-lg">☁️</div>
+                    <h3 class="title-md">Cloud Sync</h3>
+                    <p class="card-text">Your data syncs across all devices in real-time</p>
+                </div>
+                <div class="card fade-anim delay-3">
+                    <div class="card-icon card-icon-lg">🔒</div>
+                    <h3 class="title-md">Secure</h3>
+                    <p class="card-text">Bank-level encryption & privacy first</p>
+                </div>
+                <div class="card fade-anim delay-4">
+                    <div class="card-icon card-icon-lg">🤖</div>
+                    <h3 class="title-md">AI Powered</h3>
+                    <p class="card-text">Smart suggestions & personalized recommendations</p>
+                </div>
+                <div class="card fade-anim delay-5">
+                    <div class="card-icon card-icon-lg">🌐</div>
+                    <h3 class="title-md">Global</h3>
+                    <p class="card-text">190+ countries, 50+ languages</p>
+                </div>
+                <div class="card fade-anim delay-6">
+                    <div class="card-icon card-icon-lg">💬</div>
+                    <h3 class="title-md">24/7 Support</h3>
+                    <p class="card-text">Always here to help</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 8. STATS -->
+        <div class="page" id="p7">
+            <div class="label-sm">Trust</div>
+            <h2 class="title-lg">Loved by Travelers</h2>
+            <p class="sub-text">Join a growing community</p>
+            <div class="cards grid-4 fade-anim delay-2" style="margin-top: 35px;">
+                <div class="card" style="padding: 42px;">
+                    <div class="card-icon" style="font-size: 3.4rem; color: var(--accent-2);">50K+</div>
+                    <h3 class="title-md">Active Users</h3>
+                    <p class="card-text">Growing daily</p>
+                </div>
+                <div class="card" style="padding: 42px;">
+                    <div class="card-icon" style="font-size: 3.4rem; color: var(--accent);">190+</div>
+                    <h3 class="title-md">Countries</h3>
+                    <p class="card-text">Worldwide coverage</p>
+                </div>
+                <div class="card" style="padding: 42px;">
+                    <div class="card-icon" style="font-size: 3.4rem; color: var(--accent-3);">500+</div>
+                    <h3 class="title-md">Airlines</h3>
+                    <p class="card-text">Best deals</p>
+                </div>
+                <div class="card" style="padding: 42px;">
+                    <div class="card-icon" style="font-size: 3.4rem; color: var(--accent-4);">4.9★</div>
+                    <h3 class="title-md">App Rating</h3>
+                    <p class="card-text">App Store & Play</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 9. ROADMAP -->
+        <div class="page" id="p8">
+            <div class="label-sm">Coming Soon</div>
+            <h2 class="title-lg">Future Roadmap</h2>
+            <p class="sub-text">What's next for Roamind</p>
+            <div class="roadmap fade-anim delay-2">
+                <div class="roadmap-line"></div>
+                <div class="roadmap-item">
+                    <div class="roadmap-card">
+                        <span class="quarter-badge">Q2 2026</span>
+                        <div class="roadmap-head">AR City Preview</div>
+                        <p class="roadmap-desc">Experience destinations through augmented reality</p>
+                    </div>
+                    <div class="roadmap-dot"></div>
+                </div>
+                <div class="roadmap-item">
+                    <div class="roadmap-card">
+                        <span class="quarter-badge">Q3 2026</span>
+                        <div class="roadmap-head">Social Features</div>
+                        <p class="roadmap-desc">Connect travelers & plan trips together</p>
+                    </div>
+                    <div class="roadmap-dot"></div>
+                </div>
+                <div class="roadmap-item">
+                    <div class="roadmap-card">
+                        <span class="quarter-badge">Q4 2026</span>
+                        <div class="roadmap-head">Voice AI</div>
+                        <p class="roadmap-desc">Hands-free trip planning with voice commands</p>
+                    </div>
+                    <div class="roadmap-dot"></div>
+                </div>
+                <div class="roadmap-item">
+                    <div class="roadmap-card">
+                        <span class="quarter-badge">Q1 2027</span>
+                        <div class="roadmap-head">Premium Membership</div>
+                        <p class="roadmap-desc">Exclusive deals & VIP services</p>
+                    </div>
+                    <div class="roadmap-dot"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 10. CTA -->
+        <div class="page" id="p9">
+            <div class="cta-center">
+                <h2 class="cta-big fade-anim">Start Exploring</h2>
+                <p class="cta-sub fade-anim delay-1">Join 50,000+ smart travelers worldwide</p>
+                <div class="btn-group fade-anim delay-2">
+                    <button class="btn btn-primary btn-lg">Get Started Free</button>
+                    <button class="btn btn-outline btn-lg">View Pricing</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- NAV -->
+    <div class="nav-pills">
+        <div class="nav-pill active" data-n="0"></div>
+        <div class="nav-pill" data-n="1"></div>
+        <div class="nav-pill" data-n="2"></div>
+        <div class="nav-pill" data-n="3"></div>
+        <div class="nav-pill" data-n="4"></div>
+        <div class="nav-pill" data-n="5"></div>
+        <div class="nav-pill" data-n="6"></div>
+        <div class="nav-pill" data-n="7"></div>
+        <div class="nav-pill" data-n="8"></div>
+        <div class="nav-pill" data-n="9"></div>
+    </div>
+    
+    <div class="progress-bar">
+        <div class="progress-fill" style="width: 10%;"></div>
+    </div>
+    
+    <div class="controls">
+        <button class="control-btn" onclick="goSlide(currPage - 1)">← Prev</button>
+        <span class="page-num">1 / 10</span>
+        <button class="control-btn" onclick="goSlide(currPage + 1)">Next →</button>
+        <div class="divider"></div>
+        <button class="control-btn active" id="playBtn2" onclick="togglePlay()">⏸ Pause</button>
+    </div>
+    
+    <script>
+        let currPage = 0;
+        const totalPages = 10;
+        let isPlaying = true;
+        let playInterval;
+        
+        function updateSlide() {
+            // Update pages
+            document.querySelectorAll('.page').forEach((page, i) => {
+                page.classList.remove('active', 'exit');
+                if (i === currPage) page.classList.add('active');
+                else if (i < currPage) page.classList.add('exit');
+            });
+            
+            // Update nav pills
+            document.querySelectorAll('.nav-pill').forEach((pill, i) => {
+                pill.classList.toggle('active', i === currPage);
+            });
+            
+            // Update progress
+            document.querySelector('.progress-fill').style.width = ((currPage + 1) / totalPages * 100) + '%';
+            
+            // Update counter
+            document.querySelector('.page-num').textContent = (currPage + 1) + ' / ' + totalPages;
+        }
+        
+        function goSlide(n) {
+            if (n < 0) n = totalPages - 1;
+            if (n >= totalPages) n = 0;
+            currPage = n;
+            updateSlide();
+        }
+        
+        function nextSlide() { goSlide(currPage + 1); }
+        
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playBtn');
+            const btn2 = document.getElementById('playBtn2');
+            if (isPlaying) {
+                btn.innerHTML = '⏸ Pause';
+                btn2.innerHTML = '⏸ Pause';
+                startAutoPlay();
+            } else {
+                btn.innerHTML = '▶ Play';
+                btn2.innerHTML = '▶ Play';
+                clearInterval(playInterval);
+            }
+        }
+        
+        function startAutoPlay() {
+            clearInterval(playInterval);
+            playInterval = setInterval(nextSlide, 6000);
+        }
+        
+        // Nav pill clicks
+        document.querySelectorAll('.nav-pill').forEach(pill => {
+            pill.onclick = () => goSlide(parseInt(pill.dataset.n));
+        });
+        
+        // Keyboard
+        document.onkeydown = e => {
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+            else if (e.key === 'ArrowLeft') goSlide(currPage - 1);
+        };
+        
+        // Mouse wheel
+        let wheelTimeout;
+        document.onwheel = e => {
+            clearTimeout(wheelTimeout);
+            wheelTimeout = setTimeout(() => {
+                if (e.deltaY > 0) nextSlide();
+                else goSlide(currPage - 1);
+            }, 40);
+        };
+        
+        // Fullscreen
+        function goFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // Initialize
+        startAutoPlay();
+        updateSlide();
+    </script>
+</body>
+</html>

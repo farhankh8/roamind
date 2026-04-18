@@ -2,8 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const BG = '#020810'
@@ -142,8 +141,7 @@ const visaFreeCountries = [
 
 export default function Dashboard() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email: string | null; displayName: string | null } | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/dashboard')
   const [greeting, setGreeting] = useState('Good Morning')
@@ -209,9 +207,8 @@ export default function Dashboard() {
     const ti = setInterval(tick, 1000)
     const iqTimer = setInterval(() => setIqIdx(p => (p + 1) % travelIQFacts.length), 6000)
     const storyTimer = setInterval(() => setStoryIdx(p => (p + 1) % travelStories.length), 4000)
-    const unsub = onAuthStateChanged(auth, u => { if (u) setUser(u); else router.push('/auth/login'); setLoading(false) })
-    return () => { clearInterval(ti); clearInterval(iqTimer); clearInterval(storyTimer); unsub() }
-  }, [router])
+    return () => { clearInterval(ti); clearInterval(iqTimer); clearInterval(storyTimer) }
+  }, [])
 
   useEffect(() => { botEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [botMessages])
 
@@ -364,7 +361,10 @@ export default function Dashboard() {
   }
 
   const nav = (path: string) => { setActivePath(path); router.push(path) }
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
+  const handleLogout = async () => {
+    await signOut()
+    router.push('/landing')
+  }
 
   const convertCurrency = () => {
     const fromRate = currencyRates[currencyFrom] || 1

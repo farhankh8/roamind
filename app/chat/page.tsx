@@ -1,9 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import type { User } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { useAuth } from '@/context/AuthContext'
 import Sidebar from '@/components/Sidebar'
 
 const C = '#63d2ff'
@@ -22,31 +20,29 @@ interface Message {
 
 export default function AIChat() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
+  const { user, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activePath, setActivePath] = useState('/chat')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const [apiKey, setApiKey] = useState('')
   const [toast, setToast] = useState<{message: string, type: string} | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u) })
-      return () => unsubscribe()
-    } catch {}
-  }, [])
+    if (!user) {
+      router.push('/auth/login')
+    }
+  }, [user, router])
 
   useEffect(() => {
     const stored = localStorage.getItem('roamind_chat')
-    if (stored) setMessages(JSON.parse(stored))
-    
-    const settings = localStorage.getItem('roamind_settings')
-    if (settings) {
-      const s = JSON.parse(settings)
-      if (s.apiKeys?.anthropic) setApiKey(s.apiKeys.anthropic)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      setMessages(parsed.map((m: Message) => ({
+        ...m,
+        timestamp: new Date(m.timestamp)
+      })))
     }
   }, [])
 
@@ -65,9 +61,15 @@ export default function AIChat() {
     }
   }, [toast])
 
-  const handleLogout = () => signOut(auth).then(() => router.push('/landing'))
-  const nav = (path: string) => { setActivePath(path); router.push(path) }
+  const handleLogout = async () => {
+    await signOut()
+    router.push('/landing')
+  }
 
+  const nav = (path: string) => {
+    setActivePath(path)
+    router.push(path)
+  }
 
   const getUserContext = () => {
     const data = localStorage.getItem('roamind_passport_v2')
@@ -79,7 +81,7 @@ export default function AIChat() {
   }
 
   const sendMessage = async () => {
-    if (!input.trim() || !apiKey) return
+    if (!input.trim()) return
     
     const userMsg: Message = { id: `msg-${Date.now()}`, role: 'user', content: input, timestamp: new Date() }
     setMessages(prev => [...prev, userMsg])
@@ -87,34 +89,36 @@ export default function AIChat() {
     setIsTyping(true)
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1024,
-          system: `You are an expert travel assistant with deep knowledge of visa requirements, local customs, safety, budgeting, food, transport, hidden gems, and trip planning. ${getUserContext()}`,
-          messages: [
-            ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
-            { role: 'user', content: input }
-          ]
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          userContext: getUserContext()
         })
       })
 
       const result = await response.json()
-      const aiMsg: Message = {
-        id: `msg-${Date.now() + 1}`,
-        role: 'assistant',
-        content: result.content?.[0]?.text || 'Sorry, I could not generate a response.',
-        timestamp: new Date()
+      
+      if (result.error) {
+        setToast({ message: result.error, type: 'error' })
+        setMessages(prev => [...prev, {
+          id: `msg-${Date.now() + 1}`,
+          role: 'assistant',
+          content: 'Sorry, I encountered an error. Please try again.',
+          timestamp: new Date()
+        }])
+      } else {
+        const aiMsg: Message = {
+          id: `msg-${Date.now() + 1}`,
+          role: 'assistant',
+          content: result.content || 'Sorry, I could not generate a response.',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, aiMsg])
       }
-      setMessages(prev => [...prev, aiMsg])
     } catch {
-      setToast({message: 'Failed to get response. Check API key in Settings.', type: 'error'})
+      setToast({message: 'Failed to get response. Please try again.', type: 'error'})
     } finally {
       setIsTyping(false)
     }
@@ -137,6 +141,8 @@ export default function AIChat() {
       .replace(/^# (.*?)$/gm, '<h2>$1</h2>')
   }
 
+  if (!user) return null
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: BG, color: '#fff', fontFamily: "'Outfit',sans-serif", overflow: 'hidden' }}>
       <Sidebar sidebarOpen={sidebarOpen} activePath={activePath} user={user} onLogout={handleLogout} />
@@ -155,67 +161,54 @@ export default function AIChat() {
           </button>
         </div>
 
-        {!apiKey ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-            <div style={{ textAlign: 'center', maxWidth: 400 }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🔑</div>
-              <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>API Key Required</div>
-              <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 20 }}>Please add your Anthropic API key in Settings to use the AI chat.</p>
-              <button onClick={() => nav('/settings')} style={{ padding: '12px 24px', background: C, border: 'none', borderRadius: 10, color: BG, fontWeight: 600, cursor: 'pointer' }}>Go to Settings</button>
+        <div style={{ flex: 1, overflow: 'auto', padding: '20px 22px' }}>
+          {messages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.4)' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>✈️</div>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Start your travel conversation</div>
+              <p>Ask about visas, destinations, packing, or any travel topic!</p>
             </div>
-          </div>
-        ) : (
-          <>
-            <div style={{ flex: 1, overflow: 'auto', padding: '20px 22px' }}>
-              {messages.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.4)' }}>
-                  <div style={{ fontSize: 48, marginBottom: 16 }}>✈️</div>
-                  <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Start your travel conversation</div>
-                  <p>Ask about visas, destinations, packing, or any travel topic!</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {messages.map(msg => (
+                <div key={msg.id} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{ maxWidth: '70%', padding: '14px 18px', borderRadius: 18, background: msg.role === 'user' ? C : BG2, color: msg.role === 'user' ? BG : '#fff', border: msg.role === 'user' ? 'none' : '1px solid rgba(99,210,255,0.1)' }}>
+                    <div style={{ fontSize: 14, lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
+                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 6 }}>{msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                  </div>
                 </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {messages.map(msg => (
-                    <div key={msg.id} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                      <div style={{ maxWidth: '70%', padding: '14px 18px', borderRadius: 18, background: msg.role === 'user' ? C : BG2, color: msg.role === 'user' ? BG : '#fff', border: msg.role === 'user' ? 'none' : '1px solid rgba(99,210,255,0.1)' }}>
-                        <div style={{ fontSize: 14, lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
-                        <div style={{ fontSize: 10, opacity: 0.5, marginTop: 6 }}>{msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                      </div>
+              ))}
+              {isTyping && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ padding: '14px 18px', borderRadius: 18, background: BG2, border: '1px solid rgba(99,210,255,0.1)' }}>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <span style={{ width: 8, height: 8, background: C, borderRadius: '50%', animation: 'bounce 1s infinite' }} />
+                      <span style={{ width: 8, height: 8, background: C, borderRadius: '50%', animation: 'bounce 1s infinite 0.2s' }} />
+                      <span style={{ width: 8, height: 8, background: C, borderRadius: '50%', animation: 'bounce 1s infinite 0.4s' }} />
                     </div>
-                  ))}
-                  {isTyping && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                      <div style={{ padding: '14px 18px', borderRadius: 18, background: BG2, border: '1px solid rgba(99,210,255,0.1)' }}>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <span style={{ width: 8, height: 8, background: C, borderRadius: '50%', animation: 'bounce 1s infinite' }} />
-                          <span style={{ width: 8, height: 8, background: C, borderRadius: '50%', animation: 'bounce 1s infinite 0.2s' }} />
-                          <span style={{ width: 8, height: 8, background: C, borderRadius: '50%', animation: 'bounce 1s infinite 0.4s' }} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
+                  </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
+          )}
+        </div>
 
-            <div style={{ padding: '16px 22px', borderTop: '1px solid rgba(99,210,255,0.07)', background: BG2 }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Ask about your next trip..."
-                  style={{ flex: 1, padding: '14px 18px', background: BG3, border: '1px solid rgba(99,210,255,0.2)', borderRadius: 25, color: '#fff', fontSize: 14 }}
-                />
-                <button onClick={sendMessage} disabled={!input.trim() || isTyping} style={{ width: 48, height: 48, background: C, border: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: input.trim() ? 1 : 0.5 }}>
-                  <span style={{ fontSize: 20 }}>➤</span>
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+        <div style={{ padding: '16px 22px', borderTop: '1px solid rgba(99,210,255,0.07)', background: BG2 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder="Ask about your next trip..."
+              style={{ flex: 1, padding: '14px 18px', background: BG3, border: '1px solid rgba(99,210,255,0.2)', borderRadius: 25, color: '#fff', fontSize: 14 }}
+            />
+            <button onClick={sendMessage} disabled={!input.trim() || isTyping} style={{ width: 48, height: 48, background: C, border: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: input.trim() ? 1 : 0.5 }}>
+              <span style={{ fontSize: 20 }}>➤</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {toast && (
