@@ -50,14 +50,14 @@ export async function POST(req: NextRequest) {
     
     const data = validation.data
 
-    const apiKey = process.env.ANTHROPIC_API_KEY
+    const apiKey = process.env.OPENROUTER_API_KEY
     if (!apiKey) {
-      console.error('Anthropic API key not configured')
+      console.error('OpenRouter API key not configured')
       return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
     }
 
     let prompt: string
-    let model = 'claude-sonnet-4-20250514'
+    let model = 'google/gemini-2.0-flash-001'
     let maxTokens = MAX_TOKENS
 
     if (data.messages) {
@@ -89,28 +89,32 @@ For each restaurant provide:
 Return ONLY a valid JSON array with exactly 55 restaurants. No markdown, no explanation, just the JSON array.`
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: maxTokens,
-        messages: [{ role: 'user', content: prompt }]
-      }),
-      signal: AbortSignal.timeout(30000)
-    })
+    const response = await fetch(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'Roamind Travel App',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }]
+        }),
+        signal: AbortSignal.timeout(30000)
+      }
+    )
 
     if (!response.ok) {
-      console.error('Anthropic API error:', response.status, response.statusText)
+      console.error('OpenRouter API error:', response.status, response.statusText)
       return NextResponse.json({ error: 'AI service temporarily unavailable' }, { status: 502 })
     }
 
     const responseData = await response.json()
-    const content = responseData.content?.[0]?.text
+    const content = responseData.choices?.[0]?.message?.content
 
     if (!content) {
       return NextResponse.json({ error: 'No response from AI' }, { status: 500 })
@@ -133,7 +137,7 @@ Return ONLY a valid JSON array with exactly 55 restaurants. No markdown, no expl
 
     return NextResponse.json({ restaurants: restaurants.slice(0, 55) })
   } catch (error: unknown) {
-    console.error('Anthropic API route error:', error)
+    console.error('OpenRouter API route error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
